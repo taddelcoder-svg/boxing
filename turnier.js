@@ -350,6 +350,10 @@ function raeume({ zufall = Math.random, olymp = null, jetzt = () => Date.now(), 
             const r = liste.get(String(d.code).toUpperCase());
             const alt = r && mitglieder(r).find(x => x.token === d.token);
             if (alt) { uebernehmen(m0, alt, r); return; }
+            // In der Lobby wurde man beim Neuladen schon ausgetragen: einfach wieder hinein
+            const voll = r && r.mitglieder.size >= (r.art === 'duell' ? 2 : MAX_TURNIER);
+            if (r && r.phase === 'lobby' && !r.olymp && m.name && !voll && !mitglieder(r).some(x => x.name.toLowerCase() === m.name.toLowerCase())) { beitreten(m, r); return; }
+            return senden(m, { t:'raum', code:null, phase:'aus' });
           }
           if (raum && raum.phase === 'lobby') raumSenden(raum);
           return;

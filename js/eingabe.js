@@ -94,7 +94,7 @@ const Eingabe = (() => {
       knopf.addEventListener('pointerdown', e => {
         e.preventDefault(); e.stopPropagation();
         senden({ a:'roh' });
-        knopf.setPointerCapture && knopf.setPointerCapture(e.pointerId);
+        try { knopf.setPointerCapture(e.pointerId); } catch (_) { /* nicht schlimm */ }
         f.set(e.pointerId, { x:e.clientX, y:e.clientY, getan:false });
         knopf.classList.add('an');
       });

@@ -300,7 +300,7 @@
   function netzBeenden() {
     netz.soll = false;
     if (netz.ws) { try { senden({ t:'verlassen' }); netz.ws.close(); } catch (_) { /* egal */ } }
-    netz.ws = null; netz.raum = null; netz.baum = null; netz.kampf = null; netz.z = null; netz.ende = null;
+    netz.ws = null; netz.raum = null; netz.baum = null; netz.kampf = null; netz.z = null; netz.ende = null; netz.revanche = false;
     sitzung.weg('rf-sitzung');
   }
   function verbinden() {
@@ -339,7 +339,7 @@
         netz.raum = m;
         if (m.code) sitzung.schreiben('rf-sitzung', { token:netz.token, code:m.code });
         if (m.olymp && m.olymp.startIn != null) netz.startBis = performance.now() + m.olymp.startIn; else netz.startBis = 0;
-        if (m.phase === 'lobby') { netz.baum = null; netz.ende = null; if (!(modus === 'online' && netz.kampf && schirm === 'hud' && !netz.kampfVorbei)) lobbyZeigen(); }
+        if (m.phase === 'lobby') { if (netz.ende) netz.revanche = true; netz.baum = null; netz.ende = null; if (!(modus === 'online' && netz.kampf && schirm === 'hud' && !netz.kampfVorbei)) lobbyZeigen(); }
         else if (schirm === 'lobby' || schirm === 'online') baumZeigen(false);
         break;
       case 'baum':
@@ -415,7 +415,7 @@
     const genug = r.art === 'duell' ? r.mitglieder.length === 2 : r.mitglieder.length >= 2;
     $('#lobbyStart').hidden = !host || !!olymp;
     $('#lobbyStart').disabled = !genug;
-    $('#lobbyStart').textContent = r.art === 'duell' ? (netz.ende ? 'Revanche!' : 'Duell starten') : 'Turnier starten';
+    $('#lobbyStart').textContent = r.art === 'duell' ? (netz.revanche ? 'Revanche!' : 'Duell starten') : 'Turnier starten';
     $('#lobbyRaus').textContent = olymp ? 'Zurück zur Olympiade' : 'Verlassen';
     const hostName = (r.mitglieder.find(x => x.id === r.host) || {}).name || '';
     $('#lobbyHinweis').textContent = olymp ? '' : !genug ? (r.art === 'duell' ? 'Warte auf deinen Gegner – schick ihm den Code.' : 'Warte auf mindestens einen weiteren Boxer.') : host ? 'Alle da? Dann los!' : `${hostName} startet gleich.`;
@@ -649,8 +649,10 @@
   }
   function blitz() { const el = $('#blitz'); el.style.transition = 'none'; el.style.opacity = '0.65'; requestAnimationFrame(() => { el.style.transition = 'opacity .35s'; el.style.opacity = '0'; }); }
   function zahl(i, text, art) {
-    B3[i].kopfWelt(tmpV); tmpV.y += 0.25;
-    const p = Arena.aufSchirm(tmpV);
+    let p;
+    // Treffer am eigenen Boxer in der Ich-Sicht: unten in der Mitte (der eigene Kopf ist ja die Kamera)
+    if (i === anzeige.ecke && durchsicht[i]) p = { x:innerWidth / 2, y:innerHeight * 0.72, sichtbar:true };
+    else { B3[i].kopfWelt(tmpV); tmpV.y += 0.25; p = Arena.aufSchirm(tmpV); }
     if (!p.sichtbar) return;
     const el = document.createElement('div');
     el.className = 'zahl ' + (art || ''); el.textContent = text;

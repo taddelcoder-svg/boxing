@@ -7,6 +7,10 @@ eigenen Figuren und eigenem Look, ohne Nintendo-Figuren oder -Namen.
 Entschieden (2026-10-02): Name **Ringfieber**, **menschliche Figuren**, Spielerfigur aus **Presets**,
 Olympia als **K.-o.-Turnier gegeneinander**.
 
+**Stand 2026-10-02: alles aus dem Fahrplan (0.1–0.5) ist umgesetzt** – siehe README. Abweichung vom Konzept:
+Kampfansicht in der Ich-Sicht (Kamera im eigenen Kopf, eigene Handschuhe unten), weil der eigene Boxer von hinten
+den Gegner verdeckt hat.
+
 ---
 
 ## 1. Kernidee in einem Satz

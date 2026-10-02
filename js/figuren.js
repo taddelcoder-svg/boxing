@@ -383,7 +383,9 @@ const Figuren = (() => {
         const b = this.beine[i], sx = i === 0 ? 1 : -1;
         const H = tmpD.set(sx * 0.1 * this.a.breite, 0, 0).applyEuler(this.huefte.rotation).add(this.huefte.position);
         H.y -= 0.05;
-        const F = V(sx * M.fussX, 0.13, (i === 0 ? 0.17 : -0.17) - st.rueck);
+        // Am Boden liegen die Beine gestreckt (sonst stünden die Knie in die Luft)
+        const liegt = klemm(-st.kipp / 1.42, 0, 1);
+        const F = V(sx * M.fussX * (1 - liegt * 0.3), lerp(0.13, H.y - (M.ober + M.unter) * 0.97, liegt), lerp((i === 0 ? 0.17 : -0.17) - st.rueck, H.z + 0.1, liegt));
         ik(H, F, M.ober, M.unter, V(sx * 0.25, 0, 1), b.E, b.T);
         glied(b.ober, H, b.E, M.beinDicke);
         glied(b.unter, b.T, b.E, M.beinDicke * 0.85);

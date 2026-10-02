@@ -199,3 +199,20 @@ test('Jede Teilnehmerzahl von 2 bis 16 ergibt ein vollständiges Turnier', async
     assert.equal(p[0].platz, 1); assert.equal(p[1].platz, 2);
   }
 });
+
+test('Neu geladen in der Lobby: mit Token und Code landet man wieder im Raum', () => {
+  const r = raeume({ zeiten:SCHNELL });
+  const a = client(r, 'Anna'), b = client(r, 'Ben');
+  a.send({ t:'erstellen', art:'duell' });
+  const code = a.last('raum').code;
+  b.send({ t:'beitreten', code });
+  const token = b.last('du').token;
+  b.c.getrennt();
+  assert.equal(a.last('raum').mitglieder.length, 1);
+  const neu = client(r, 'Ben');
+  neu.send({ t:'hallo', name:'Ben', token, code });
+  assert.equal(neu.last('raum').code, code);
+  assert.equal(a.last('raum').mitglieder.length, 2);
+  const weg = client(r, 'Cem'); weg.send({ t:'hallo', name:'Cem', token:'falsch', code:'ZZZZ' });
+  assert.equal(weg.last('raum').phase, 'aus', 'Raum gibt es nicht mehr: zurück zum Online-Menü');
+});
