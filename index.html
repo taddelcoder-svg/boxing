@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0a0c12">
+<title>Ringfieber</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥊</text></svg>">
+<style>
+  /* Barlow Semi Condensed (SIL OFL 1.1), selbst ausgeliefert */
+  @font-face { font-family:"Barlow SC"; font-weight:600; font-display:swap; src:url(vendor/barlow-semi-condensed-600.woff2) format("woff2"); }
+  @font-face { font-family:"Barlow SC"; font-weight:700; font-display:swap; src:url(vendor/barlow-semi-condensed-700.woff2) format("woff2"); }
+  @font-face { font-family:"Barlow SC"; font-weight:800; font-display:swap; src:url(vendor/barlow-semi-condensed-800.woff2) format("woff2"); }
+  :root {
+    --nacht:#0a0c12; --tafel:rgba(12,15,24,.88); --tafel-hell:rgba(28,33,48,.92); --linie:rgba(255,255,255,.12);
+    --text:#f3f1ec; --leise:#a7adbd; --rot:#e63333; --rot-dunkel:#9e1b1b; --gold:#ffc83d; --blau:#3d7bff; --gruen:#3ccf6a;
+    --schatten:0 18px 40px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; background:var(--nacht); }
+  body { font-family:"Barlow SC", "Arial Narrow", Arial, sans-serif; font-weight:600; color:var(--text); -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; overscroll-behavior:none; }
+  button, input, select { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  [hidden] { display:none !important; }
+  #welt { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  .schirm { position:fixed; inset:0; overflow-y:auto; padding:max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); background:linear-gradient(90deg, rgba(6,8,14,.92) 0%, rgba(6,8,14,.72) 45%, rgba(6,8,14,.25) 100%); }
+  .schirm.mittig { display:flex; align-items:center; justify-content:center; background:rgba(6,8,14,.72); backdrop-filter:blur(3px); }
+  .innen { max-width:1040px; margin:0 auto; }
+  .karte { background:var(--tafel); border:1px solid var(--linie); border-radius:18px; padding:22px; box-shadow:var(--schatten); }
+  h1, h2, h3 { margin:0; font-weight:800; text-transform:uppercase; letter-spacing:.01em; }
+  h2 { font-size:clamp(1.9rem, 5vw, 2.6rem); line-height:1; margin-bottom:14px; }
+  h3 { font-size:1.25rem; margin:20px 0 10px; color:var(--gold); }
+  p { margin:0 0 10px; color:var(--leise); font-size:1.08rem; line-height:1.4; }
+  a { color:var(--gold); }
+
+  /* Knöpfe */
+  .knopf { display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:48px; padding:10px 22px; border:0; border-radius:12px; background:var(--tafel-hell); border:1px solid var(--linie); font-weight:800; font-size:1.15rem; text-transform:uppercase; letter-spacing:.03em; transition:transform .1s, background .15s, border-color .15s; text-decoration:none; color:var(--text); }
+  .knopf:hover { transform:translateY(-1px); border-color:rgba(255,255,255,.3); }
+  .knopf:active { transform:translateY(1px) scale(.98); }
+  .knopf:focus-visible, .wahl:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }
+  .knopf.haupt { background:linear-gradient(180deg, #f04545, #b81f1f); border-color:#ff7a7a; box-shadow:0 6px 0 #6d0f0f, 0 10px 24px rgba(230,51,51,.35); }
+  .knopf.haupt:active { box-shadow:0 2px 0 #6d0f0f; }
+  .knopf.gold { background:linear-gradient(180deg, #ffd766, #e6a817); color:#2b1a00; border-color:#ffe7a3; box-shadow:0 6px 0 #8a5b00; }
+  .knopf.klein { min-height:38px; padding:6px 14px; font-size:1rem; }
+  .knopf:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+  .zeile { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .zurueck { margin-bottom:14px; }
+
+  /* Startbildschirm */
+  #sStart .innen { min-height:100%; display:flex; flex-direction:column; justify-content:center; max-width:1040px; }
+  .logo { font-size:clamp(3.4rem, 14vw, 8.2rem); line-height:.82; font-weight:800; letter-spacing:-.02em; text-transform:uppercase; margin:0; transform:skewX(-6deg); text-shadow:0 8px 30px rgba(0,0,0,.6); }
+  .logo span { color:var(--rot); display:block; }
+  .unterzeile { font-size:clamp(1.05rem, 2.6vw, 1.35rem); color:#d7d9e0; max-width:30ch; margin:16px 0 26px; }
+  .menue { display:grid; gap:12px; max-width:420px; }
+  .menue .knopf { justify-content:flex-start; min-height:58px; font-size:1.35rem; padding-left:20px; }
+  .menue .knopf small { margin-left:auto; font-size:.85rem; color:var(--leise); font-weight:600; text-transform:none; letter-spacing:0; }
+  .menue .knopf.haupt small { color:#ffd0d0; }
+  .fuss { margin-top:28px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; color:var(--leise); font-size:.95rem; }
+  .fuss select, .fuss button { background:var(--tafel-hell); border:1px solid var(--linie); border-radius:10px; padding:6px 10px; }
+
+  /* Karten mit Gegnern */
+  .reiter { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .reiter button { border:1px solid var(--linie); background:var(--tafel); border-radius:999px; padding:8px 18px; font-weight:800; text-transform:uppercase; }
+  .reiter button[aria-pressed="true"] { background:var(--gold); color:#2b1a00; border-color:var(--gold); }
+  .reiter button:disabled { opacity:.45; }
+  .gegnerliste { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+  .wahl { text-align:left; border:2px solid var(--linie); background:var(--tafel); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:6px; min-height:132px; position:relative; transition:border-color .15s, transform .1s; }
+  .wahl:hover:not(:disabled) { border-color:rgba(255,255,255,.35); transform:translateY(-2px); }
+  .wahl[aria-pressed="true"] { border-color:var(--gold); box-shadow:0 0 0 3px rgba(255,200,61,.25); }
+  .wahl:disabled { opacity:.5; cursor:not-allowed; }
+  .wahl .nr { font-size:.85rem; color:var(--leise); text-transform:uppercase; }
+  .wahl .name { font-size:1.35rem; font-weight:800; line-height:1.05; }
+  .wahl .typ { font-size:.98rem; color:var(--leise); }
+  .wahl .marke { position:absolute; top:10px; right:12px; font-size:.82rem; font-weight:800; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.1); }
+  .wahl .marke.sieg { background:var(--gruen); color:#05250f; }
+  .wahl .marke.jetzt { background:var(--rot); }
+  .farbpunkt { display:inline-block; width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,.4); vertical-align:middle; }
+  .tipp { background:rgba(255,200,61,.1); border-left:4px solid var(--gold); padding:10px 14px; border-radius:8px; color:#f5e3b0; margin:14px 0; font-size:1.05rem; }
+  .startleiste { position:sticky; bottom:0; padding:14px 0 4px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:linear-gradient(0deg, rgba(6,8,14,.95) 60%, transparent); }
+
+  /* Mein Boxer */
+  .presets { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:10px; }
+  .presets .wahl { min-height:84px; align-items:center; text-align:center; justify-content:center; }
+  .farben { display:flex; flex-wrap:wrap; gap:10px; }
+  .farbe { width:46px; height:46px; border-radius:50%; border:3px solid rgba(255,255,255,.25); position:relative; }
+  .farbe[aria-pressed="true"] { border-color:#fff; box-shadow:0 0 0 3px var(--gold); }
+  .farbe:disabled::after { content:"🔒"; position:absolute; inset:0; display:grid; place-items:center; font-size:1rem; background:rgba(0,0,0,.55); border-radius:50%; }
+  .feld { display:flex; flex-direction:column; gap:6px; max-width:340px; }
+  .feld label { color:var(--leise); font-size:1rem; }
+  .feld input, .feld select { background:#121622; border:1px solid var(--linie); border-radius:10px; padding:10px 12px; font-size:1.2rem; }
+  .code { font-size:1.6rem; letter-spacing:.3em; text-transform:uppercase; width:7.5em; }
+  .fehlerzeile { color:#ff8a8a; min-height:1.4em; margin-top:8px; }
+  .boxerlayout { display:grid; grid-template-columns:minmax(0, 560px); gap:16px; }
+
+  /* Lobby & Turnierbaum */
+  .raumcode { font-size:clamp(2.6rem, 10vw, 4rem); font-weight:800; letter-spacing:.18em; color:var(--gold); line-height:1; }
+  .leute { list-style:none; margin:12px 0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px; }
+  .leute li { background:var(--tafel-hell); border:1px solid var(--linie); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; font-size:1.1rem; }
+  .leute li small { color:var(--leise); margin-left:auto; font-size:.85rem; }
+  .leute li.weg { opacity:.5; }
+  .baum { display:flex; gap:18px; overflow-x:auto; padding:6px 2px 14px; }
+  .baum .spalte { min-width:200px; display:flex; flex-direction:column; justify-content:space-around; gap:12px; }
+  .baum .spalte h4 { margin:0 0 4px; font-weight:800; text-transform:uppercase; color:var(--gold); font-size:1rem; }
+  .paar { background:var(--tafel-hell); border:1px solid var(--linie); border-radius:12px; overflow:hidden; font-size:1.05rem; }
+  .paar div { padding:7px 10px; display:flex; justify-content:space-between; gap:8px; }
+  .paar div + div { border-top:1px solid var(--linie); }
+  .paar .sieger { color:#fff; background:rgba(60,207,106,.16); }
+  .paar .verlierer { color:var(--leise); text-decoration:line-through; text-decoration-color:rgba(255,255,255,.3); }
+  .paar .ich { color:var(--gold); }
+  .paar.laeuft { border-color:var(--rot); box-shadow:0 0 0 2px rgba(230,51,51,.35); }
+  .paar button { width:100%; border:0; border-top:1px solid var(--linie); background:rgba(230,51,51,.18); padding:6px; font-weight:800; text-transform:uppercase; }
+  .paar .art { font-size:.82rem; color:var(--leise); }
+  .podest { display:flex; align-items:flex-end; justify-content:center; gap:10px; margin:10px 0 18px; }
+  .podest div { width:min(30%, 160px); text-align:center; border-radius:12px 12px 0 0; padding:10px 6px; font-weight:800; font-size:1.15rem; }
+  .podest .p1 { height:150px; background:linear-gradient(180deg, #ffd766, #b98510); color:#2b1a00; }
+  .podest .p2 { height:115px; background:linear-gradient(180deg, #e3e7ee, #8b95a5); color:#1b2230; }
+  .podest .p3 { height:90px; background:linear-gradient(180deg, #e8a36b, #9a5a2a); color:#2a1206; }
+  .platzliste { list-style:none; padding:0; margin:0; display:grid; gap:6px; }
+  .platzliste li { display:grid; grid-template-columns:3em 1fr auto; gap:10px; padding:8px 12px; background:var(--tafel-hell); border-radius:10px; }
+
+  /* HUD im Kampf */
+  #hud { position:fixed; inset:0; pointer-events:none; }
+  .leiste { position:absolute; top:max(10px, env(safe-area-inset-top)); left:10px; right:10px; display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:start; }
+  .kaempfer { display:flex; flex-direction:column; gap:4px; }
+  .kaempfer.rechts { align-items:flex-end; }
+  .kaempfer .name { font-weight:800; font-size:clamp(1rem, 2.6vw, 1.4rem); text-transform:uppercase; text-shadow:0 2px 6px #000; display:flex; gap:8px; align-items:center; }
+  .balken { width:min(40vw, 380px); height:clamp(12px, 2.2vw, 20px); background:rgba(0,0,0,.55); border:2px solid rgba(255,255,255,.5); border-radius:6px; overflow:hidden; position:relative; transform:skewX(-12deg); }
+  .rechts .balken { transform:skewX(12deg); }
+  .balken i { position:absolute; inset:0; transform-origin:left; background:linear-gradient(180deg, #7dff9a, #22a944); transition:transform .12s; }
+  .rechts .balken i { transform-origin:right; }
+  .balken i.spur { background:#ff5a5a; transition:transform .6s .25s; }
+  .balken.niedrig i:not(.spur) { background:linear-gradient(180deg, #ffd766, #e09a10); }
+  .balken.kritisch i:not(.spur) { background:linear-gradient(180deg, #ff7676, #c21d1d); }
+  .puste { width:min(28vw, 260px); height:7px; background:rgba(0,0,0,.5); border-radius:4px; overflow:hidden; }
+  .puste i { display:block; height:100%; background:#5aa8ff; transform-origin:left; }
+  .rechts .puste i { transform-origin:right; margin-left:auto; }
+  .sterne { font-size:clamp(1rem, 2.4vw, 1.35rem); letter-spacing:.08em; color:rgba(255,255,255,.25); text-shadow:0 2px 4px #000; }
+  .sterne b { color:var(--gold); }
+  .nd { color:#ff8a8a; font-size:.95rem; }
+  .uhr { text-align:center; background:rgba(0,0,0,.6); border:2px solid rgba(255,255,255,.35); border-radius:12px; padding:4px 14px; min-width:92px; }
+  .uhr b { display:block; font-size:clamp(1.6rem, 4.6vw, 2.4rem); line-height:1; font-weight:800; font-variant-numeric:tabular-nums; }
+  .uhr span { font-size:.9rem; color:var(--leise); text-transform:uppercase; }
+  #meldung { position:absolute; left:0; right:0; top:30%; text-align:center; font-weight:800; font-size:clamp(2.6rem, 11vw, 6.5rem); text-transform:uppercase; line-height:.95; text-shadow:0 6px 0 rgba(0,0,0,.5), 0 0 40px rgba(0,0,0,.6); transform:skewX(-6deg); opacity:0; transition:opacity .15s; }
+  #meldung.an { opacity:1; animation:knall .35s cubic-bezier(.2,1.6,.4,1); }
+  #meldung small { display:block; font-size:clamp(1rem, 3vw, 1.6rem); color:#fff; margin-top:10px; text-shadow:0 2px 8px #000; }
+  @keyframes knall { from { transform:skewX(-6deg) scale(1.6); opacity:0; } to { transform:skewX(-6deg) scale(1); opacity:1; } }
+  #klein { position:absolute; left:0; right:0; top:58%; text-align:center; font-weight:800; font-size:clamp(1.2rem, 4vw, 2rem); text-transform:uppercase; color:var(--gold); text-shadow:0 3px 10px #000; opacity:0; transition:opacity .2s; }
+  #klein.an { opacity:1; }
+  #tippHinweis { position:absolute; left:50%; bottom:24%; transform:translateX(-50%); background:rgba(0,0,0,.7); border:2px solid var(--gold); border-radius:12px; padding:8px 16px; font-size:clamp(1.1rem, 3.4vw, 1.6rem); font-weight:800; white-space:nowrap; }
+  #zahlen { position:absolute; inset:0; overflow:hidden; }
+  .zahl { position:absolute; font-weight:800; font-size:clamp(1.4rem, 4vw, 2.3rem); color:#fff; text-shadow:0 3px 0 #000, 0 0 12px rgba(0,0,0,.6); animation:steigen .9s ease-out forwards; }
+  .zahl.wehe { color:#ff6b6b; }
+  .zahl.konter { color:var(--gold); font-size:clamp(1.8rem, 5.5vw, 3rem); }
+  @keyframes steigen { from { transform:translate(-50%, 0) scale(1.4); opacity:1; } to { transform:translate(-50%, -70px) scale(1); opacity:0; } }
+  #aufstehen { position:absolute; left:50%; top:62%; transform:translateX(-50%); text-align:center; }
+  #aufstehen b { display:block; font-size:clamp(1.6rem, 6vw, 3rem); color:var(--gold); text-transform:uppercase; animation:pochen .3s infinite alternate; }
+  #aufstehen .fort { width:min(70vw, 360px); height:14px; border-radius:7px; background:rgba(0,0,0,.6); border:2px solid #fff; overflow:hidden; margin:10px auto 0; }
+  #aufstehen .fort i { display:block; height:100%; background:var(--gold); transform-origin:left; }
+  @keyframes pochen { to { transform:scale(1.08); } }
+  #hudKnoepfe { position:absolute; top:calc(max(10px, env(safe-area-inset-top)) + 74px); right:10px; display:flex; gap:8px; pointer-events:auto; }
+  #hudKnoepfe .knopf { min-height:40px; padding:4px 12px; font-size:.95rem; background:rgba(0,0,0,.55); }
+  #tastenHilfe { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); display:flex; gap:14px; flex-wrap:wrap; justify-content:center; font-size:.95rem; color:#e6e8ee; background:rgba(0,0,0,.55); padding:6px 14px; border-radius:10px; max-width:96vw; }
+  #tastenHilfe kbd { font:inherit; font-weight:800; background:rgba(255,255,255,.14); border-radius:5px; padding:0 6px; margin-right:4px; }
+  #blitz { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .25s; }
+
+  /* Touch-Steuerung */
+  #touch { position:absolute; inset:0; pointer-events:none; }
+  #tZone { position:absolute; left:0; bottom:0; width:50%; height:62%; pointer-events:auto; touch-action:none; }
+  #tZone::after { content:"⇠ wischen ⇢\A ↓ ducken · halten = Deckung"; white-space:pre; position:absolute; left:18px; bottom:max(18px, env(safe-area-inset-bottom)); font-size:.95rem; color:rgba(255,255,255,.55); text-align:left; line-height:1.3; }
+  #tZone.block::before { content:"DECKUNG"; position:absolute; left:18px; bottom:72px; font-weight:800; color:var(--gold); font-size:1.3rem; }
+  .faeuste { position:absolute; right:max(12px, env(safe-area-inset-right)); bottom:max(14px, env(safe-area-inset-bottom)); display:grid; grid-template-columns:auto auto; gap:12px; pointer-events:none; }
+  .faust { pointer-events:auto; touch-action:none; width:clamp(78px, 21vw, 112px); height:clamp(78px, 21vw, 112px); border-radius:50%; border:3px solid rgba(255,255,255,.55); background:radial-gradient(circle at 35% 30%, rgba(255,120,120,.75), rgba(170,20,20,.75)); font-weight:800; font-size:1.5rem; display:grid; place-items:center; line-height:1; }
+  .faust small { display:block; font-size:.62rem; font-weight:700; opacity:.85; margin-top:2px; }
+  .faust.an { transform:scale(.92); background:radial-gradient(circle at 35% 30%, #ffb3b3, #d02020); }
+  #tStern { pointer-events:auto; position:absolute; right:max(18px, env(safe-area-inset-right)); bottom:calc(max(14px, env(safe-area-inset-bottom)) + clamp(90px, 24vw, 128px)); width:64px; height:64px; border-radius:50%; border:3px solid var(--gold); background:rgba(0,0,0,.55); font-size:1.8rem; color:var(--gold); }
+  #tStern:disabled { opacity:.3; }
+  #tPause { pointer-events:auto; position:absolute; left:10px; top:calc(max(10px, env(safe-area-inset-top)) + 74px); width:46px; height:46px; border-radius:12px; border:1px solid var(--linie); background:rgba(0,0,0,.55); font-size:1.2rem; }
+
+  .tabelle { width:100%; border-collapse:collapse; font-size:1.05rem; }
+  .tabelle td, .tabelle th { padding:7px 8px; border-bottom:1px solid var(--linie); text-align:left; }
+  .tabelle th { color:var(--gold); font-weight:800; text-transform:uppercase; font-size:.95rem; }
+  .tabelle td:last-child, .tabelle th:last-child { text-align:right; }
+  .ergebnisTitel { font-size:clamp(3rem, 12vw, 5.6rem); font-weight:800; text-transform:uppercase; line-height:.9; transform:skewX(-6deg); }
+  .ergebnisTitel.sieg { color:var(--gold); }
+  .ergebnisTitel.niederlage { color:#ff6b6b; }
+  .belohnung { background:rgba(60,207,106,.12); border:1px solid rgba(60,207,106,.5); border-radius:12px; padding:12px 14px; margin:12px 0; color:#c9f5d6; }
+  .hilfe-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; }
+  @media (max-width:640px) {
+    .karte { padding:16px; }
+    .leiste { grid-template-columns:1fr auto 1fr; gap:6px; left:6px; right:6px; }
+    .balken { width:36vw; }
+    .puste { width:26vw; }
+    .uhr { min-width:64px; padding:2px 8px; }
+    #tastenHilfe { display:none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="welt" aria-label="Boxring"></canvas>
+
+<!-- Start -->
+<section id="sStart" class="schirm" hidden>
+  <div class="innen">
+    <h1 class="logo">Ring<span>fieber</span></h1>
+    <p class="unterzeile">Arcade-Boxen. Lies den Gegner, weich aus – und schlag zurück, solange er offen ist.</p>
+    <div class="menue">
+      <button class="knopf haupt" data-gehe="karriere">Karriere <small id="karriereStand">Bronze 0/8</small></button>
+      <button class="knopf" data-gehe="online">Online-Duell &amp; Turnier <small>mit Code</small></button>
+      <button class="knopf" data-gehe="schnell">Schnellkampf <small>gegen den Computer</small></button>
+      <button class="knopf" data-gehe="training">Training <small>ohne Risiko, mit Tipps</small></button>
+      <button class="knopf" data-gehe="boxer">Mein Boxer</button>
+      <button class="knopf" data-gehe="hilfe">Steuerung &amp; Regeln</button>
+    </div>
+    <div class="fuss">
+      <button id="tonKnopf" type="button">🔊 Ton an</button>
+      <label>Grafik <select id="grafikWahl"><option value="hoch">hoch</option><option value="mittel">mittel</option><option value="niedrig">niedrig</option></select></label>
+      <a href="/datenschutz">Datenschutz</a>
+      <span>Swimming Lions</span>
+    </div>
+  </div>
+</section>
+
+<!-- Karriere -->
+<section id="sKarriere" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" data-gehe="start">← Zurück</button>
+    <h2>Karriere</h2>
+    <p>Acht Gegner pro Liga, einer nach dem anderen. Wer alle besiegt, steigt auf – und schaltet neue Farben frei.</p>
+    <div class="reiter" id="ligaReiter"></div>
+    <div class="gegnerliste" id="karriereListe"></div>
+    <div class="tipp" id="karriereTipp" hidden></div>
+    <div class="startleiste"><button class="knopf haupt" id="karriereStart">In den Ring!</button><span id="karriereInfo" class="leise"></span></div>
+  </div>
+</section>
+
+<!-- Gegner wählen (Schnellkampf / Training) -->
+<section id="sGegner" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" data-gehe="start">← Zurück</button>
+    <h2 id="gegnerTitel">Schnellkampf</h2>
+    <p id="gegnerText"></p>
+    <div class="reiter" id="gegnerLiga"></div>
+    <div class="gegnerliste" id="gegnerListe"></div>
+    <div class="tipp" id="gegnerTipp" hidden></div>
+    <div class="startleiste"><button class="knopf haupt" id="gegnerStart">Kampf!</button>
+      <label id="zeitlupeWahl" class="zeile"><input type="checkbox" id="zeitlupe"> Zeitlupe</label></div>
+  </div>
+</section>
+
+<!-- Mein Boxer -->
+<section id="sBoxer" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" id="boxerZurueck">← Fertig</button>
+    <h2>Mein Boxer</h2>
+    <div class="boxerlayout">
+      <div class="feld"><label for="nameFeld">Dein Name (für Online-Kämpfe)</label><input id="nameFeld" maxlength="16" autocomplete="nickname" placeholder="z. B. Turbo-Tom"></div>
+      <div><h3>Figur</h3><div class="presets" id="presetListe"></div></div>
+      <div><h3>Hose</h3><div class="farben" id="hoseListe"></div></div>
+      <div><h3>Handschuhe</h3><div class="farben" id="handschuhListe"></div></div>
+      <p>Alle Figuren boxen gleich stark – es geht nur ums Aussehen. Weitere Farben gibt es für Ligasiege in der Karriere.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Online -->
+<section id="sOnline" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" data-gehe="start">← Zurück</button>
+    <h2>Online</h2>
+    <p>Der Server rechnet jeden Kampf – egal ob Duell oder Turnier. Teile den Code mit deinen Leuten.</p>
+    <div class="karte" style="display:grid;gap:18px">
+      <div class="feld"><label for="onlineName">Dein Name</label><input id="onlineName" maxlength="16" autocomplete="nickname" placeholder="z. B. Turbo-Tom"></div>
+      <div>
+        <h3 style="margin-top:0">Neu</h3>
+        <div class="zeile">
+          <label class="feld" style="min-width:150px"><span>Kampfdauer</span><select id="neuDauer"><option value="60">60 Sek.</option><option value="90" selected>90 Sek.</option><option value="120">2 Min.</option></select></label>
+          <label class="feld" style="min-width:150px"><span>Kampf um Platz 3</span><select id="neuPlatz3"><option value="1">Ja</option><option value="0">Nein</option></select></label>
+        </div>
+        <div class="zeile" style="margin-top:12px"><button class="knopf haupt" id="neuTurnier">K.-o.-Turnier (2–16)</button><button class="knopf" id="neuDuell">Duell (1 gegen 1)</button></div>
+      </div>
+      <div>
+        <h3 style="margin-top:0">Beitreten</h3>
+        <div class="zeile"><input id="codeFeld" class="code" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" aria-label="Raumcode"><button class="knopf" id="beitreten">Beitreten</button></div>
+      </div>
+      <p class="fehlerzeile" id="onlineFehler" role="alert"></p>
+    </div>
+  </div>
+</section>
+
+<!-- Lobby -->
+<section id="sLobby" class="schirm" hidden>
+  <div class="innen">
+    <div class="karte">
+      <div id="lobbyOlymp" hidden><p class="tipp" id="lobbyOlympText"></p></div>
+      <div class="zeile" style="justify-content:space-between">
+        <div><p style="margin:0" id="lobbyArt">Turnier</p><div class="raumcode" id="lobbyCode">----</div></div>
+        <div class="zeile"><button class="knopf klein" id="lobbyLink">Einladungslink kopieren</button></div>
+      </div>
+      <ul class="leute" id="lobbyLeute"></ul>
+      <p id="lobbyHinweis"></p>
+      <div class="zeile" id="lobbyEinst">
+        <label class="feld" style="min-width:150px"><span>Kampfdauer</span><select id="lobbyDauer"><option value="60">60 Sek.</option><option value="90">90 Sek.</option><option value="120">2 Min.</option></select></label>
+        <label class="feld" style="min-width:150px"><span>Kampf um Platz 3</span><select id="lobbyPlatz3"><option value="1">Ja</option><option value="0">Nein</option></select></label>
+      </div>
+      <div class="zeile" style="margin-top:16px">
+        <button class="knopf haupt" id="lobbyStart">Turnier starten</button>
+        <button class="knopf" id="lobbyBoxer">Mein Boxer</button>
+        <button class="knopf" id="lobbyRaus">Verlassen</button>
+      </div>
+      <p class="fehlerzeile" id="lobbyFehler" role="alert"></p>
+    </div>
+  </div>
+</section>
+
+<!-- Turnierbaum -->
+<section id="sBaum" class="schirm" hidden>
+  <div class="innen">
+    <div class="karte">
+      <div class="zeile" style="justify-content:space-between">
+        <h2 id="baumTitel" style="margin:0">Turnier</h2>
+        <div class="zeile"><button class="knopf klein" id="baumZurueckKampf" hidden>Zurück zum Kampf</button></div>
+      </div>
+      <p id="baumHinweis"></p>
+      <div id="baumEnde" hidden>
+        <div class="podest" id="podest"></div>
+        <ol class="platzliste" id="platzliste"></ol>
+        <div class="zeile" style="margin-top:16px"><a class="knopf gold" id="zurOlympiade" hidden>Zurück zur Olympiade</a><button class="knopf" id="baumMenue">Zum Menü</button></div>
+      </div>
+      <div class="baum" id="baum"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Kampf -->
+<div id="hud" hidden>
+  <div class="leiste">
+    <div class="kaempfer" id="k0">
+      <div class="name"><span class="n">Du</span><span class="nd"></span></div>
+      <div class="balken"><i class="spur"></i><i class="hp"></i></div>
+      <div class="puste"><i></i></div>
+      <div class="sterne"></div>
+    </div>
+    <div class="uhr"><span id="runde">Runde 1</span><b id="zeit">1:00</b></div>
+    <div class="kaempfer rechts" id="k1">
+      <div class="name"><span class="nd"></span><span class="n">Gegner</span></div>
+      <div class="balken"><i class="spur"></i><i class="hp"></i></div>
+      <div class="puste"><i></i></div>
+      <div class="sterne"></div>
+    </div>
+  </div>
+  <div id="zahlen"></div>
+  <div id="meldung"></div>
+  <div id="klein"></div>
+  <div id="tippHinweis" hidden></div>
+  <div id="aufstehen" hidden><b>Tippen! Tippen! Tippen!</b><div class="fort"><i></i></div></div>
+  <div id="hudKnoepfe"><button class="knopf" id="hudBaum" hidden>Turnierbaum</button><button class="knopf" id="hudZeitlupe" hidden>Zeitlupe</button></div>
+  <div id="tastenHilfe"><span><kbd>A</kbd><kbd>D</kbd>ausweichen</span><span><kbd>S</kbd>ducken</span><span><kbd>W</kbd>Deckung</span><span><kbd>J</kbd><kbd>K</kbd>Gerade</span><span><kbd>U</kbd><kbd>I</kbd>Haken</span><span><kbd>N</kbd><kbd>M</kbd>Körper</span><span><kbd>Leertaste</kbd>Volltreffer</span><span><kbd>Esc</kbd>Pause</span></div>
+  <div id="touch" hidden>
+    <div id="tZone"></div>
+    <div class="faeuste"><button class="faust" data-seite="L">L<small>↑Haken ↓Körper</small></button><button class="faust" data-seite="R">R<small>↑Haken ↓Körper</small></button></div>
+    <button id="tStern" aria-label="Volltreffer">★</button>
+    <button id="tPause" aria-label="Pause">❚❚</button>
+  </div>
+</div>
+<div id="blitz"></div>
+
+<!-- Pause -->
+<section id="sPause" class="schirm mittig" hidden>
+  <div class="karte" style="width:min(420px,100%);display:grid;gap:12px">
+    <h2>Pause</h2>
+    <button class="knopf haupt" id="weiter">Weiter</button>
+    <button class="knopf" data-gehe="hilfe" data-zurueck="pause">Steuerung</button>
+    <button class="knopf" id="aufgeben">Aufgeben</button>
+  </div>
+</section>
+
+<!-- Ergebnis (Solo) -->
+<section id="sErgebnis" class="schirm mittig" hidden>
+  <div class="karte" style="width:min(560px,100%)">
+    <div class="ergebnisTitel" id="ergTitel">Sieg!</div>
+    <p id="ergText" style="margin-top:10px"></p>
+    <div id="ergBelohnung" class="belohnung" hidden></div>
+    <table class="tabelle" id="ergTabelle"></table>
+    <div class="zeile" style="margin-top:18px"><button class="knopf haupt" id="ergWeiter">Weiter</button><button class="knopf" id="ergNochmal">Nochmal</button><button class="knopf" id="ergMenue">Menü</button></div>
+  </div>
+</section>
+
+<!-- Hilfe -->
+<section id="sHilfe" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" id="hilfeZurueck">← Zurück</button>
+    <h2>Steuerung &amp; Regeln</h2>
+    <div class="hilfe-grid">
+      <div class="karte">
+        <h3 style="margin-top:0">Tastatur</h3>
+        <table class="tabelle">
+          <tr><td>Ausweichen links / rechts</td><td>A / D (oder ← / →)</td></tr>
+          <tr><td>Ducken</td><td>S (oder ↓)</td></tr>
+          <tr><td>Deckung (halten)</td><td>W (oder ↑)</td></tr>
+          <tr><td>Gerade links / rechts</td><td>J / K</td></tr>
+          <tr><td>Haken links / rechts</td><td>U / I</td></tr>
+          <tr><td>Körpertreffer links / rechts</td><td>N / M</td></tr>
+          <tr><td>Volltreffer (braucht Sterne)</td><td>Leertaste</td></tr>
+          <tr><td>Aufstehen am Boden</td><td>schnell irgendeine Taste</td></tr>
+        </table>
+      </div>
+      <div class="karte">
+        <h3 style="margin-top:0">Handy &amp; Controller</h3>
+        <table class="tabelle">
+          <tr><td>Links wischen ⇠ ⇢</td><td>ausweichen</td></tr>
+          <tr><td>Links nach unten wischen</td><td>ducken</td></tr>
+          <tr><td>Links halten</td><td>Deckung</td></tr>
+          <tr><td>Faust tippen / ↑ / ↓</td><td>Gerade / Haken / Körper</td></tr>
+          <tr><td>★</td><td>Volltreffer</td></tr>
+          <tr><td>Controller: Stick, LB, X/B, Y, A, RB</td><td>ausweichen, Deckung, Gerade, Haken, Körper, Volltreffer</td></tr>
+        </table>
+      </div>
+      <div class="karte">
+        <h3 style="margin-top:0">Was hilft wogegen?</h3>
+        <table class="tabelle">
+          <tr><th>Schlag</th><th>Abwehr</th></tr>
+          <tr><td>Gerade</td><td>ausweichen, ducken, Deckung</td></tr>
+          <tr><td>Körpertreffer</td><td>ausweichen, Deckung – nicht ducken</td></tr>
+          <tr><td>Haken</td><td>ducken, oder weg vom leuchtenden Handschuh ausweichen</td></tr>
+          <tr><td>Aufwärtshaken, Volltreffer</td><td>nur zur Seite ausweichen (Deckung hält nur die Hälfte)</td></tr>
+        </table>
+      </div>
+      <div class="karte">
+        <h3 style="margin-top:0">So gewinnst du</h3>
+        <p>Jeder Schlag hat ein <b>Ausholen</b> – der Handschuh leuchtet auf. Weichst du richtig aus, steht der Gegner kurz <b>offen</b>: Jetzt kontern! Konter zählen mehr, betäuben länger und bringen einen <b>Stern</b>.</p>
+        <p>Mit Sternen schlägst du einen <b>Volltreffer</b> – je mehr Sterne, desto härter. Wer zu viel schlägt, ist außer <b>Puste</b>. Wer in einer Runde dreimal zu Boden geht, verliert durch technischen K.o.</p>
+        <p>Holt jemand zu einem schweren Schlag aus, halten ihn leichte Treffer nicht auf. Am Boden: schnell tippen, um vor der Zehn aufzustehen.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/logik.js"></script>
+<script src="js/figuren.js"></script>
+<script src="js/arena.js"></script>
+<script src="js/ton.js"></script>
+<script src="js/eingabe.js"></script>
+<script src="js/spiel.js"></script>
+</body>
+</html>
