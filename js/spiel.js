@@ -19,19 +19,50 @@
 
   /* ---------- Profil und Karriere ---------- */
   const profil = speicher.lesen('rf-profil', { name:'', preset:RF.PRESETS[Math.floor(Math.random() * RF.PRESETS.length)].id, hose:'#d32f2f', handschuhe:'#d32f2f' });
-  const karriere = speicher.lesen('rf-karriere', { bronze:0, silber:0, gold:0, kaempfe:0 });
+  const karriere = speicher.lesen('rf-karriere', { bronze:0, silber:0, gold:0, welt:0, kaempfe:0 });
   const profilSpeichern = () => speicher.schreiben('rf-profil', profil);
   const karriereSpeichern = () => speicher.schreiben('rf-karriere', karriere);
-  const ligaFrei = liga => liga === 'bronze' || karriere[LIGEN[LIGEN.indexOf(liga) - 1]] >= 8;
-  const farbeFrei = f => !f.frei || karriere[f.frei] >= 8;
+  const ligaAnzahl = liga => RF.ligaGegner(liga).length;
+  const ligaGeschafft = liga => karriere[liga] >= ligaAnzahl(liga);
+  const ligaFrei = liga => liga === 'bronze' || ligaGeschafft(LIGEN[LIGEN.indexOf(liga) - 1]);
+  const farbeFrei = f => !f.frei || ligaGeschafft(f.frei);
   const aussehenAus = p => Object.assign({}, RF.PRESETS.find(x => x.id === p.preset) || RF.PRESETS[0], { hose:p.hose || '#d32f2f', handschuhe:p.handschuhe || '#d32f2f' });
-  const gegner = id => RF.GEGNER.find(g => g.id === id) || RF.GEGNER[0];
+  const gegner = id => RF.ALLE_GEGNER.find(g => g.id === id) || RF.GEGNER[0];
+
+  /* ---------- Aufstieg: Erfahrung, Münzen, Training, Ausrüstung (nur gegen den Computer) ---------- */
+  const aufstieg = speicher.lesen('rf-aufstieg', { ep:0, muenzen:0, werte:{ kraft:0, ausdauer:0, kondition:0 }, besitz:[], guertel:false, rekorde:{} });
+  aufstieg.werte = Object.assign({ kraft:0, ausdauer:0, kondition:0 }, aufstieg.werte);
+  aufstieg.rekorde = aufstieg.rekorde || {}; aufstieg.besitz = Array.isArray(aufstieg.besitz) ? aufstieg.besitz : [];
+  const aufstiegSpeichern = () => speicher.schreiben('rf-aufstieg', aufstieg);
+  const stufe = () => RF.stufeAus(aufstieg.ep);
+  const punkteFrei = () => Math.max(0, stufe() - 1 - Object.values(aufstieg.werte).reduce((a, b) => a + b, 0));
+  const meineWerte = () => RF.spielerWerte(aufstieg.werte, aufstieg.besitz);
+  const weltmeister = () => ligaGeschafft('welt');
+  // Eigenes Aussehen (mit Gürtel, wenn man Weltmeister ist und ihn tragen will)
+  const eigenesAussehen = () => Object.assign(aussehenAus(profil), aufstieg.guertel && weltmeister() ? { guertel:true } : {});
+  // Belohnung gutschreiben; gibt die Texte für den Ergebnis-Bildschirm zurück
+  function belohnen(ep, muenzen) {
+    const vorher = stufe();
+    aufstieg.ep += Math.max(0, Math.round(ep)); aufstieg.muenzen += Math.max(0, Math.round(muenzen));
+    aufstiegSpeichern();
+    const texte = [`+${Math.round(ep)} Erfahrung`];
+    if (muenzen > 0) texte.push(`+${Math.round(muenzen)} Münzen`);
+    const nach = stufe();
+    if (nach > vorher) texte.push(`Stufe ${nach}! ${nach - vorher > 1 ? `${nach - vorher} Trainingspunkte` : 'Ein Trainingspunkt'} in „Aufstieg“`);
+    return texte;
+  }
+  const PREIS = { bronze:[50, 20], silber:[80, 35], gold:[120, 55], welt:[170, 80] };
+  function kampfLohn(liga, e, ecke) {
+    const sieg = e.sieger === ecke, [ep, m] = PREIS[liga] || PREIS.silber;
+    if (!sieg) return [15 + 2 * e.konter[ecke], 5];
+    return [ep + 4 * e.konter[ecke] + (e.art === 'ko' || e.art === 'tko' ? 25 : 0), m];
+  }
 
   let grafik = (() => { try { return localStorage.getItem('rf-grafik'); } catch (_) { return null; } })() || (Eingabe.istTouch() ? 'mittel' : 'hoch');
 
   /* ---------- 3D ---------- */
   Arena.bauen($('#welt'), grafik);
-  const B3 = [new Figuren.Boxer3D(aussehenAus(profil)), new Figuren.Boxer3D(gegner('bruno').aussehen)];
+  const B3 = [new Figuren.Boxer3D(eigenesAussehen()), new Figuren.Boxer3D(gegner('bruno').aussehen)];
   B3[0].wurzel.position.set(0, 0, -0.5);
   B3[1].wurzel.position.set(0, 0, 0.5); B3[1].wurzel.rotation.y = Math.PI;
   for (const b of B3) Arena.szene.add(b.wurzel);
@@ -41,7 +72,7 @@
 
   /* ---------- Bildschirme ---------- */
   let schirm = 'start', modus = 'menue';
-  const SCHIRME = { start:'#sStart', karriere:'#sKarriere', gegner:'#sGegner', boxer:'#sBoxer', online:'#sOnline', lobby:'#sLobby', baum:'#sBaum', pause:'#sPause', ergebnis:'#sErgebnis', hilfe:'#sHilfe', hud:'#hud' };
+  const SCHIRME = { start:'#sStart', karriere:'#sKarriere', gegner:'#sGegner', boxer:'#sBoxer', online:'#sOnline', lobby:'#sLobby', baum:'#sBaum', pause:'#sPause', ergebnis:'#sErgebnis', hilfe:'#sHilfe', hud:'#hud', aufstieg:'#sAufstieg', lager:'#sLager', ausdauer:'#sAusdauer' };
   function zeige(name) {
     for (const [n, sel] of Object.entries(SCHIRME)) $(sel).hidden = n !== name && !(name === 'pause' && n === 'hud');
     schirm = name;
@@ -58,6 +89,9 @@
     else if (z === 'online') onlineZeigen();
     else if (z === 'schnell' || z === 'training') gegnerZeigen(z);
     else if (z === 'boxer') { boxerZurueck = 'start'; boxerZeigen(); }
+    else if (z === 'aufstieg') aufstiegZeigen();
+    else if (z === 'lager') lagerZeigen();
+    else if (z === 'ausdauer') ausdauerZeigen();
     else if (z === 'hilfe') { hilfeZurueck = b.dataset.zurueck || 'start'; zeige('hilfe'); }
   });
   $('#hilfeZurueck').onclick = () => { Ton.klick(); if (hilfeZurueck === 'pause') zeige('pause'); else startZeigen(); };
@@ -65,8 +99,10 @@
   function startZeigen() {
     modus = 'menue';
     demoStarten();
-    const liga = LIGEN.find(l => karriere[l] < 8);
-    $('#karriereStand').textContent = liga ? `${RF.LIGEN[liga].name} ${karriere[liga]}/8` : 'Champion ★';
+    const liga = LIGEN.find(l => !ligaGeschafft(l));
+    $('#karriereStand').textContent = liga ? `${RF.LIGEN[liga].name} ${karriere[liga]}/${ligaAnzahl(liga)}` : 'Weltmeister ★';
+    $('#aufstiegStand').textContent = `Stufe ${stufe()}${punkteFrei() ? ' · ' + punkteFrei() + ' Punkt' + (punkteFrei() > 1 ? 'e' : '') + ' frei' : ''} · ${aufstieg.muenzen} Münzen`;
+    $('#ausdauerStand').textContent = aufstieg.rekorde.ausdauer ? `Rekord: ${aufstieg.rekorde.ausdauer} Siege` : 'Gegner um Gegner';
     $('#tonKnopf').textContent = Ton.an ? '🔊 Ton an' : '🔇 Ton aus';
     $('#grafikWahl').value = grafik;
     zeige('start');
@@ -79,7 +115,7 @@
     const b = document.createElement('button');
     b.className = 'wahl'; b.type = 'button'; b.disabled = !!gesperrt;
     b.setAttribute('aria-pressed', gewaehlt ? 'true' : 'false');
-    b.innerHTML = `<span class="nr">Gegner ${i + 1} <span class="farbpunkt" style="background:${g.aussehen.hose}"></span></span><span class="name">${esc(g.name)}</span><span class="typ">${esc(g.typ)}</span>${marke ? `<span class="marke ${markeArt || ''}">${esc(marke)}</span>` : ''}`;
+    b.innerHTML = `<span class="nr">${g.champion ? 'Titelkampf' : `Gegner ${i + 1}`} <span class="farbpunkt" style="background:${g.aussehen.hose}"></span></span><span class="name">${esc(g.name)}</span><span class="typ">${esc(g.typ)}</span>${marke ? `<span class="marke ${markeArt || ''}">${esc(marke)}</span>` : ''}`;
     return b;
   }
   function ligaReiter(el, aktiv, nurFreie, wahl) {
@@ -98,20 +134,20 @@
   function karriereZeigen() {
     modus = 'menue';
     if (!ligaFrei(karriereLiga)) karriereLiga = 'bronze';
-    const n = karriere[karriereLiga];
-    if (karriereWahl == null || karriereWahl > Math.min(n, 7)) karriereWahl = Math.min(n, 7);
+    const n = karriere[karriereLiga], liste_ = RF.ligaGegner(karriereLiga), anzahl = liste_.length;
+    if (karriereWahl == null || karriereWahl > Math.min(n, anzahl - 1)) karriereWahl = Math.min(n, anzahl - 1);
     ligaReiter($('#ligaReiter'), karriereLiga, true, l => { karriereLiga = l; karriereWahl = null; karriereZeigen(); });
     const liste = $('#karriereListe'); liste.innerHTML = '';
-    RF.GEGNER.forEach((g, i) => {
+    liste_.forEach((g, i) => {
       const besiegt = i < n, naechster = i === n;
       const k = gegnerKarte(g, i, { marke:besiegt ? 'Besiegt' : naechster ? 'Nächster' : '🔒', markeArt:besiegt ? 'sieg' : naechster ? 'jetzt' : '', gesperrt:i > n, gewaehlt:i === karriereWahl });
       k.onclick = () => { Ton.klick(); karriereWahl = i; karriereZeigen(); };
       liste.appendChild(k);
     });
-    const g = RF.GEGNER[karriereWahl];
+    const g = liste_[karriereWahl];
     $('#karriereTipp').hidden = false;
     $('#karriereTipp').textContent = `${g.kurz}: ${g.tipp}`;
-    $('#karriereInfo').textContent = n >= 8 ? `${RF.LIGEN[karriereLiga].name}-Liga geschafft – Revanche gegen jeden möglich.` : `${n} von 8 besiegt`;
+    $('#karriereInfo').textContent = (n >= anzahl ? `${RF.LIGEN[karriereLiga].name}-Liga geschafft – Revanche gegen jeden möglich.` : `${n} von ${anzahl} besiegt`) + ` · Stufe ${stufe()}`;
     $('#karriereStart').onclick = () => { Ton.klick(); soloStarten('karriere', g.id, karriereLiga); };
     zeige('karriere');
   }
@@ -128,12 +164,15 @@
     $('#zeitlupeWahl').hidden = !training;
     ligaReiter($('#gegnerLiga'), gegnerLiga, false, l => { gegnerLiga = l; gegnerZeigen(); });
     const liste = $('#gegnerListe'); liste.innerHTML = '';
-    RF.GEGNER.forEach((g, i) => {
-      const k = gegnerKarte(g, i, { gewaehlt:i === gegnerWahl });
+    const auswahl = RF.ligaGegner(gegnerLiga);
+    if (gegnerWahl >= auswahl.length || (auswahl[gegnerWahl].champion && !weltmeister())) gegnerWahl = 0;
+    auswahl.forEach((g, i) => {
+      const zu = g.champion && !weltmeister();
+      const k = gegnerKarte(g, i, { gewaehlt:i === gegnerWahl, gesperrt:zu, marke:zu ? '🔒 Karriere' : '' });
       k.onclick = () => { Ton.klick(); gegnerWahl = i; gegnerZeigen(); };
       liste.appendChild(k);
     });
-    const g = RF.GEGNER[gegnerWahl];
+    const g = auswahl[gegnerWahl];
     $('#gegnerTipp').hidden = false; $('#gegnerTipp').textContent = `${g.kurz}: ${g.tipp}`;
     $('#gegnerStart').onclick = () => { Ton.klick(); soloStarten(gegnerModus, g.id, gegnerLiga); };
     zeige('gegner');
@@ -143,8 +182,10 @@
   function boxerZeigen() {
     modus = 'menue'; demo = null;
     anzeige.boxer = [leer(), leer()];
-    B3[0].aussehenSetzen(aussehenAus(profil)); B3[0].ichSicht(false); durchsicht[0] = false;
+    B3[0].aussehenSetzen(eigenesAussehen()); B3[0].ichSicht(false); durchsicht[0] = false;
     $('#nameFeld').value = profil.name;
+    $('#guertelWahl').hidden = !weltmeister() || boxerZurueck === 'lobby';
+    $('#guertel').checked = !!aufstieg.guertel;
     const presets = $('#presetListe'); presets.innerHTML = '';
     for (const p of RF.PRESETS) {
       const b = document.createElement('button');
@@ -168,6 +209,7 @@
     }
     zeige('boxer');
   }
+  $('#guertel').onchange = e => { aufstieg.guertel = e.target.checked; aufstiegSpeichern(); B3[0].aussehenSetzen(eigenesAussehen()); };
   $('#nameFeld').addEventListener('input', e => { profil.name = e.target.value.slice(0, 16); profilSpeichern(); });
   $('#boxerZurueck').onclick = () => {
     Ton.klick();
@@ -177,21 +219,143 @@
 
   /* ---------- Solo-Kämpfe ---------- */
   let solo = null, demo = null, zeitlupeBis = 0;
-  function soloStarten(art, gegnerId, liga) {
+  // art: 'karriere', 'schnell', 'training', 'ausdauer', 'pratzen' oder 'drill'
+  const COACH = { kurz:'Coach Rudi', typ:'Hält die Pratzen', aussehen:{ haut:'#d7a37e', haare:'glatze', haarfarbe:'#000000', breite:1.12, groesse:1.0, hose:'#37474f', handschuhe:'#ffd23f', bart:'voll' } };
+  const DRILL_PARTNER = ['kiki', 'finn', 'flora', 'otto'];
+  function soloStarten(art, gegnerId, liga, serie) {
     netzBeenden();
-    const g = gegner(gegnerId), gw = RF.gegnerWerte(gegnerId, liga);
-    const training = art === 'training';
-    if (training) { gw.hp = 260; gw.ki.liegen = 0; }
-    const kampf = new RF.Kampf({ boxer:[{ unverwundbar:training }, gw], runden:training ? 1 : 3, dauer:training ? 300 : 60, startwert:1 + Math.floor(Math.random() * 2 ** 30), gnade:2 });
-    solo = { kampf, art, gegnerId, liga, zeitlupe:training && $('#zeitlupe').checked, pausiert:false, endeBei:0, gezeigt:false };
+    const startwert = 1 + Math.floor(Math.random() * 2 ** 30);
+    const training = art === 'training', pratzen = art === 'pratzen', drill = art === 'drill';
+    let g, kampf;
+    if (pratzen) {
+      g = COACH; liga = 'silber';
+      kampf = new RF.Kampf({ boxer:[{ unverwundbar:true }, { hp:9999, unverwundbar:true }], runden:1, dauer:30, startwert });
+    } else if (drill) {
+      gegnerId = DRILL_PARTNER[Math.floor(Math.random() * DRILL_PARTNER.length)]; liga = 'silber';
+      g = gegner(gegnerId);
+      const gw = RF.gegnerWerte(gegnerId, liga);
+      gw.hp = 9999; gw.unverwundbar = true; gw.ki.liegen = 0; gw.ki.pause = [0.45, 0.9]; gw.ki.finte = 0; gw.ki.konter = 0;
+      kampf = new RF.Kampf({ boxer:[{ unverwundbar:true }, gw], runden:1, dauer:30, startwert });
+    } else {
+      g = gegner(gegnerId);
+      const gw = RF.gegnerWerte(gegnerId, liga);
+      if (training) { gw.hp = 260; gw.ki.liegen = 0; }
+      // Werte und Ausrüstung gelten gegen den Computer (nicht im Training, nicht online)
+      const ich = training ? { unverwundbar:true } : meineWerte();
+      if (serie) ich.hpStart = serie.hp;
+      kampf = new RF.Kampf({ boxer:[ich, gw], runden:training || serie ? 1 : 3, dauer:training ? 300 : 60, verlaengerung:!!serie, startwert, gnade:2 });
+    }
+    solo = { kampf, art, gegnerId, liga, serie, zeitlupe:training && $('#zeitlupe').checked, pausiert:false, endeBei:0, gezeigt:false,
+      drill:pratzen || drill ? { punkte:0, fehler:0, ziel:null, serie:0 } : null };
     demo = null;
-    B3[0].aussehenSetzen(aussehenAus(profil)); B3[1].aussehenSetzen(g.aussehen);
+    B3[0].aussehenSetzen(eigenesAussehen()); B3[1].aussehenSetzen(g.aussehen);
     anzeige.namen = [profil.name || 'Du', g.kurz]; anzeige.ecke = 0;
     modus = 'solo';
     karriere.kaempfe = (karriere.kaempfe || 0) + 1; karriereSpeichern();
     kampfAnsicht();
-    meldung(g.kurz, `${g.typ} · ${RF.LIGEN[liga].name}`, 2400);
+    if (pratzen) meldung('Pratzen', 'Triff genau den Schlag, den der Coach ruft', 2400);
+    else if (drill) meldung('Ausweich-Drill', `${g.kurz} schlägt ohne Pause – weich aus!`, 2400);
+    else if (serie) meldung(`Gegner ${serie.n + 1}`, `${g.kurz} · ${RF.LIGEN[liga].name}`, 2400);
+    else meldung(g.kurz, `${g.typ} · ${RF.LIGEN[liga].name}`, 2400);
   }
+
+  /* ---------- Trainingslager: Pratzen und Ausweich-Drill ---------- */
+  const PRATZEN_ZIELE = [['gerade', 'L', 'Gerade links', 'J'], ['gerade', 'R', 'Gerade rechts', 'K'], ['haken', 'L', 'Haken links', 'U'], ['haken', 'R', 'Haken rechts', 'I'], ['koerper', 'L', 'Körper links', 'N'], ['koerper', 'R', 'Körper rechts', 'M']];
+  function drillSchritt() {
+    const d = solo && solo.drill, k = solo && solo.kampf;
+    const el = $('#drillZiel');
+    if (!d || !k || k.phase !== 'kampf') { if (!el.hidden && (!d || k.phase === 'ende')) el.hidden = true; return; }
+    if (solo.art === 'drill') {
+      setze('drill', el, 'html', `<small>Ausgewichen</small><b>${d.punkte}</b><small>getroffen: ${d.fehler}</small>`);
+      el.hidden = false; return;
+    }
+    if (!d.ziel || k.tick > d.ziel.bis) {
+      if (d.ziel) { d.fehler++; d.serie = 0; klein('Zu langsam!', 600); }
+      let z; do z = PRATZEN_ZIELE[Math.floor(Math.random() * PRATZEN_ZIELE.length)]; while (d.ziel && z[2] === d.ziel.text);
+      const dauer = RF.s(Math.max(0.9, 1.8 - d.punkte * 0.04));
+      d.ziel = { art:z[0], seite:z[1], text:z[2], taste:z[3], ab:k.tick, bis:k.tick + dauer };
+    }
+    const rest = klemm((d.ziel.bis - k.tick) / Math.max(1, d.ziel.bis - d.ziel.ab), 0, 1);
+    const taste = Eingabe.istTouch() ? '' : ` (${d.ziel.taste})`;
+    setze('drill', el, 'html', `<small>${d.punkte} ${d.punkte === 1 ? 'Punkt' : 'Punkte'}${d.serie > 2 ? ` · Serie ${d.serie}` : ''}</small><b>${esc(d.ziel.text)}${taste}</b><div class="fort"><i></i></div>`);
+    el.querySelector('.fort i').style.transform = `scaleX(${rest.toFixed(3)})`;
+    el.hidden = false;
+  }
+  function drillEreignis(e) {
+    const d = solo.drill;
+    if (solo.art === 'pratzen' && e.typ === 'treffer' && e.wer === 0 && d.ziel) {
+      if (e.art === d.ziel.art && e.seite === d.ziel.seite) { d.punkte++; d.serie++; d.ziel = null; if (d.serie % 5 === 0) Ton.stern(); }
+      else { d.fehler++; d.serie = 0; klein('Falscher Schlag!', 600); }
+    }
+    if (solo.art === 'drill') {
+      if ((e.typ === 'ausgewichen' && e.wer === 0) || (e.typ === 'geblockt' && e.wer === 0 && !RF.ANGRIFFE[e.art].schwer)) { d.punkte++; if (d.punkte % 5 === 0) Ton.stern(); }
+      if ((e.typ === 'treffer' && e.wer === 1) || (e.typ === 'geblockt' && e.wer === 0 && RF.ANGRIFFE[e.art].schwer)) d.fehler++;
+    }
+  }
+
+  function lagerZeigen() {
+    modus = 'menue'; demoStarten();
+    $('#rekordPratzen').textContent = aufstieg.rekorde.pratzen ? `Rekord ${aufstieg.rekorde.pratzen}` : '';
+    $('#rekordDrill').textContent = aufstieg.rekorde.drill ? `Rekord ${aufstieg.rekorde.drill}` : '';
+    zeige('lager');
+  }
+  for (const b of $$('[data-lager]')) b.onclick = () => {
+    Ton.klick();
+    if (b.dataset.lager === 'muster') gegnerZeigen('training'); else soloStarten(b.dataset.lager);
+  };
+
+  /* ---------- Ausdauer: Gegner um Gegner ---------- */
+  let ausdauerMeldung = '';
+  const ausdauerLiga = n => n < 3 ? 'bronze' : n < 6 ? 'silber' : n < 10 ? 'gold' : 'welt';
+  function ausdauerZeigen() {
+    modus = 'menue'; demoStarten();
+    const r = aufstieg.rekorde.ausdauer || 0;
+    $('#ausdauerRekord').textContent = (ausdauerMeldung ? ausdauerMeldung + ' ' : '') + (r ? `Dein Rekord: ${r} Gegner besiegt. Mit Stufe ${stufe()} und deiner Ausrüstung hast du ${meineWerte().hp} Lebenskraft.` : `Mit Stufe ${stufe()} und deiner Ausrüstung hast du ${meineWerte().hp} Lebenskraft.`);
+    ausdauerMeldung = '';
+    zeige('ausdauer');
+  }
+  function ausdauerNaechster(serie) {
+    const liga = ausdauerLiga(serie.n);
+    const pool = RF.ligaGegner(liga).filter(g => g.id !== serie.letzter && (!g.champion || serie.n >= 12));
+    const g = pool[Math.floor(Math.random() * pool.length)];
+    serie.letzter = g.id;
+    soloStarten('ausdauer', g.id, liga, serie);
+  }
+  $('#ausdauerStart').onclick = () => { Ton.klick(); ausdauerNaechster({ n:0, hp:meineWerte().hp, lohn:[0, 0] }); };
+
+  /* ---------- Aufstieg & Ausrüstung ---------- */
+  function aufstiegZeigen() {
+    modus = 'menue'; demoStarten();
+    const st = stufe(), max = st >= RF.STUFE_MAX;
+    const von = RF.epFuer(st), bis = RF.epFuer(st + 1);
+    $('#stufeText').textContent = `Stufe ${st}${max ? ' (höchste)' : ''}`;
+    $('#muenzenText').textContent = `${aufstieg.muenzen} Münzen`;
+    $('#epBalken').style.transform = `scaleX(${max ? 1 : klemm((aufstieg.ep - von) / (bis - von), 0, 1).toFixed(3)})`;
+    $('#epText').textContent = max ? `${aufstieg.ep} Erfahrung – alles erreicht.` : `${aufstieg.ep} / ${bis} Erfahrung bis Stufe ${st + 1}`;
+    const frei = punkteFrei();
+    $('#punkteText').textContent = frei ? `· ${frei} Punkt${frei > 1 ? 'e' : ''} frei` : '';
+    const wl = $('#werteListe'); wl.innerHTML = '';
+    for (const [id, w] of Object.entries(RF.WERTE)) {
+      const n = aufstieg.werte[id] || 0;
+      const d = document.createElement('div'); d.className = 'wert';
+      d.innerHTML = `<b>${esc(w.name)} <span class="pips">${'●'.repeat(n)}${'○'.repeat(w.max - n)}</span></b><small>${esc(w.text)}</small><button class="knopf klein" type="button" ${!frei || n >= w.max ? 'disabled' : ''}>+1</button>`;
+      d.querySelector('button').onclick = () => { if (!punkteFrei() || aufstieg.werte[id] >= w.max) return; Ton.stern(); aufstieg.werte[id]++; aufstiegSpeichern(); aufstiegZeigen(); };
+      wl.appendChild(d);
+    }
+    const ll = $('#ladenListe'); ll.innerHTML = '';
+    for (const a of RF.AUSRUESTUNG) {
+      const hat = aufstieg.besitz.includes(a.id), schonBesser = RF.AUSRUESTUNG.some(x => x.platz === a.platz && x.preis > a.preis && aufstieg.besitz.includes(x.id));
+      const d = document.createElement('div'); d.className = 'ware' + (hat ? ' hat' : '');
+      d.innerHTML = `<b>${esc(a.name)}</b><small>${esc(a.text)}</small>${hat ? '<span class="leise">✓ gekauft</span>' : `<button class="knopf klein ${aufstieg.muenzen >= a.preis && !schonBesser ? 'gold' : ''}" type="button" ${aufstieg.muenzen < a.preis || schonBesser ? 'disabled' : ''}>${a.preis} Münzen</button>`}`;
+      const k = d.querySelector('button');
+      if (k) k.onclick = () => { if (aufstieg.muenzen < a.preis) return; Ton.stern(); aufstieg.muenzen -= a.preis; aufstieg.besitz.push(a.id); aufstiegSpeichern(); aufstiegZeigen(); };
+      ll.appendChild(d);
+    }
+    const w = meineWerte(), proz = x => `${x >= 0 ? '+' : ''}${Math.round(x * 100)} %`;
+    $('#kampfwerte').innerHTML = `<tr><th>Gegen den Computer</th><th></th></tr><tr><td>Lebenskraft</td><td>${w.hp}</td></tr><tr><td>Schaden</td><td>${proz(w.schadenFaktor - 1)}</td></tr><tr><td>Puste pro Schlag</td><td>${proz(w.pusteFaktor - 1)}</td></tr>`;
+    zeige('aufstieg');
+  }
+
   function kampfAnsicht() {
     zeige('hud');
     const touch = Eingabe.istTouch();
@@ -201,7 +365,7 @@
     $('#hudBaum').hidden = !(modus === 'online' && netz.raum && netz.raum.art === 'turnier');
     $('#hudZeitlupe').hidden = !(modus === 'solo' && solo.art === 'training');
     $('#hudZeitlupe').textContent = solo && solo.zeitlupe ? 'Zeitlupe: an' : 'Zeitlupe: aus';
-    $('#tippHinweis').hidden = true; $('#aufstehen').hidden = true;
+    $('#tippHinweis').hidden = true; $('#aufstehen').hidden = true; $('#drillZiel').hidden = true;
     hudCache = {};
   }
   $('#hudZeitlupe').onclick = () => { if (solo) { solo.zeitlupe = !solo.zeitlupe; $('#hudZeitlupe').textContent = solo.zeitlupe ? 'Zeitlupe: an' : 'Zeitlupe: aus'; } };
@@ -215,43 +379,105 @@
   $('#aufgeben').onclick = () => { Ton.klick(); if (solo) { solo.pausiert = false; solo.kampf.aufgeben(0); zeige('hud'); } };
 
   function soloErgebnis() {
-    const k = solo.kampf, e = k.ergebnis, sieg = e.sieger === 0, g = gegner(solo.gegnerId);
-    const titel = $('#ergTitel');
+    const k = solo.kampf, e = k.ergebnis, sieg = e.sieger === 0, g = solo.drill ? (solo.art === 'pratzen' ? COACH : gegner(solo.gegnerId)) : gegner(solo.gegnerId);
+    const titel = $('#ergTitel'), bel = $('#ergBelohnung'), texte = [];
+    bel.hidden = true;
+    $('#drillZiel').hidden = true;
+    if (solo.drill) {
+      const d = solo.drill, art = solo.art, alt = aufstieg.rekorde[art] || 0;
+      titel.textContent = 'Zeit!'; titel.className = 'ergebnisTitel sieg';
+      $('#ergText').textContent = art === 'pratzen' ? `${d.punkte} Schläge richtig getroffen.` : `${d.punkte}-mal richtig ausgewichen oder geblockt.`;
+      if (d.punkte > alt) { aufstieg.rekorde[art] = d.punkte; if (alt) texte.push('Neuer Rekord!'); }
+      $('#ergTabelle').innerHTML = (art === 'pratzen'
+        ? [['Richtig', d.punkte], ['Falsch oder zu langsam', d.fehler], ['Rekord', aufstieg.rekorde[art] || 0]]
+        : [['Ausgewichen / geblockt', d.punkte], ['Getroffen worden', d.fehler], ['Rekord', aufstieg.rekorde[art] || 0]]).map(z => `<tr><td>${esc(z[0])}</td><td>${esc(z[1])}</td></tr>`).join('');
+      texte.push(...belohnen(d.punkte * 3, Math.floor(d.punkte / 2)));
+      bel.hidden = false; bel.textContent = texte.join(' · ');
+      $('#ergWeiter').textContent = 'Trainingslager';
+      $('#ergWeiter').onclick = () => { Ton.klick(); lagerZeigen(); };
+      $('#ergNochmal').textContent = 'Nochmal';
+      $('#ergNochmal').onclick = () => { Ton.klick(); soloStarten(art); };
+      $('#ergMenue').onclick = () => { Ton.klick(); startZeigen(); };
+      zeige('ergebnis');
+      return;
+    }
     titel.textContent = sieg ? 'Sieg!' : e.sieger === null ? 'Unentschieden' : 'Niederlage';
     titel.className = 'ergebnisTitel ' + (sieg ? 'sieg' : e.sieger === null ? '' : 'niederlage');
     const wie = {
       ko:sieg ? `${g.kurz} wurde in Runde ${e.runde} ausgezählt – K.o.!` : `Du wurdest in Runde ${e.runde} ausgezählt.`,
       tko:sieg ? `Technischer K.o.: ${g.kurz} ging dreimal in einer Runde zu Boden.` : 'Technischer K.o.: dreimal in einer Runde am Boden.',
       punkte:sieg ? `Sieg nach Punkten – mehr Schaden ausgeteilt (${e.schaden[0]} : ${e.schaden[1]}).` : `Niederlage nach Punkten (${e.schaden[0]} : ${e.schaden[1]} Schaden).`,
+      verlaengerung:sieg ? 'In der Verlängerung entschieden – dein Treffer saß zuerst.' : `${g.kurz} traf in der Verlängerung zuerst.`,
+      los:sieg ? 'Das Los hat für dich entschieden.' : 'Das Los hat gegen dich entschieden.',
       aufgabe:sieg ? `${g.kurz} hat aufgegeben.` : 'Du hast aufgegeben.',
       unentschieden:`Gleich viel Schaden ausgeteilt (${e.schaden[0]} : ${e.schaden[1]}).`
     };
     $('#ergText').textContent = solo.art === 'training' ? 'Training beendet. Weiter so!' : (wie[e.art] || '');
     const zeilen = [['', 'Du', g.kurz], ['Schaden ausgeteilt', e.schaden[0], e.schaden[1]], ['Treffer', e.treffer[0], e.treffer[1]], ['Konter', e.konter[0], e.konter[1]], ['Volltreffer', e.volltreffer[0], e.volltreffer[1]], ['Niederschläge kassiert', e.nd[0], e.nd[1]]];
     $('#ergTabelle').innerHTML = zeilen.map((z, i) => `<tr>${z.map(x => i ? `<td>${esc(x)}</td>` : `<th>${esc(x)}</th>`).join('')}</tr>`).join('');
+    $('#ergWeiter').textContent = solo.art === 'karriere' ? 'Weiter' : 'Andere Gegner';
+    $('#ergWeiter').onclick = () => { Ton.klick(); if (solo.art === 'karriere') karriereZeigen(); else gegnerZeigen(solo.art); };
+    $('#ergNochmal').textContent = 'Nochmal';
+    $('#ergNochmal').onclick = () => { Ton.klick(); soloStarten(solo.art, solo.gegnerId, solo.liga); };
+    $('#ergMenue').onclick = () => { Ton.klick(); startZeigen(); };
+    // Ausdauer: weiter zum nächsten Gegner oder Ende der Serie
+    if (solo.art === 'ausdauer') {
+      const sr = solo.serie;
+      if (sieg) {
+        sr.n++;
+        const [ep, m] = kampfLohn(solo.liga, e, 0);
+        sr.lohn[0] += ep * 0.6; sr.lohn[1] += m * 0.6;
+        sr.hp = Math.min(meineWerte().hp, Math.max(1, k.b[0].hp) + Math.round(meineWerte().hp * 0.2));
+        texte.push(`${sr.n} besiegt · Lebenskraft für den nächsten Kampf: ${sr.hp}`);
+        if (ausdauerLiga(sr.n) !== solo.liga) texte.push(`Jetzt kommt die ${RF.LIGEN[ausdauerLiga(sr.n)].name}-Liga!`);
+        $('#ergWeiter').textContent = 'Nächster Gegner';
+        $('#ergWeiter').onclick = () => { Ton.klick(); ausdauerNaechster(sr); };
+        $('#ergNochmal').textContent = 'Aufhören';
+        $('#ergNochmal').onclick = () => { Ton.klick(); ausdauerEnde(sr); };
+        $('#ergMenue').onclick = () => { Ton.klick(); ausdauerEnde(sr, true); };
+      } else {
+        $('#ergText').textContent += ` Serie vorbei: ${sr.n} Gegner besiegt.`;
+        texte.push(...ausdauerEnde(sr, false, true));
+        $('#ergWeiter').textContent = 'Neue Serie';
+        $('#ergWeiter').onclick = () => { Ton.klick(); ausdauerZeigen(); };
+        $('#ergNochmal').textContent = 'Nochmal';
+        $('#ergNochmal').onclick = () => { Ton.klick(); ausdauerNaechster({ n:0, hp:meineWerte().hp, lohn:[0, 0] }); };
+      }
+      bel.hidden = false; bel.textContent = texte.join(' · ');
+      zeige('ergebnis');
+      return;
+    }
     // Karriere-Fortschritt
-    const bel = $('#ergBelohnung'); bel.hidden = true;
-    const index = RF.GEGNER.findIndex(x => x.id === solo.gegnerId);
+    const liste = RF.ligaGegner(solo.liga), index = liste.findIndex(x => x.id === solo.gegnerId);
     if (solo.art === 'karriere' && sieg && index === karriere[solo.liga]) {
       karriere[solo.liga]++; karriereSpeichern();
-      const texte = [];
-      if (karriere[solo.liga] < 8) texte.push(`Nächster Gegner: ${RF.GEGNER[karriere[solo.liga]].name}`);
+      if (karriere[solo.liga] < liste.length) texte.push(`Nächster Gegner: ${liste[karriere[solo.liga]].name}`);
       else {
         const naechste = LIGEN[LIGEN.indexOf(solo.liga) + 1];
-        texte.push(naechste ? `${RF.LIGEN[solo.liga].name}-Liga gewonnen! Die ${RF.LIGEN[naechste].name}-Liga ist offen.` : 'Du bist Champion von Ringfieber! 🏆');
+        texte.push(naechste ? `${RF.LIGEN[solo.liga].name}-Liga gewonnen! Die ${RF.LIGEN[naechste].name}-Liga ist offen.` : 'Du bist Weltmeister! 🏆 Den Gürtel kannst du in „Mein Boxer“ anlegen.');
         const neu = RF.FARBEN.filter(f => f.frei === solo.liga).map(f => f.name);
         if (neu.length) texte.push(`Neue Farben in „Mein Boxer“: ${neu.join(', ')}`);
         if (naechste) karriereLiga = naechste;
         karriereWahl = null;
       }
-      bel.hidden = false; bel.textContent = texte.join(' · ');
       Ton.stern();
     }
-    $('#ergWeiter').textContent = solo.art === 'karriere' ? 'Weiter' : 'Andere Gegner';
-    $('#ergWeiter').onclick = () => { Ton.klick(); if (solo.art === 'karriere') karriereZeigen(); else gegnerZeigen(solo.art); };
-    $('#ergNochmal').onclick = () => { Ton.klick(); soloStarten(solo.art, solo.gegnerId, solo.liga); };
-    $('#ergMenue').onclick = () => { Ton.klick(); startZeigen(); };
+    // Erfahrung und Münzen (nicht im Training)
+    if (solo.art !== 'training' && e.art !== 'aufgabe') texte.push(...belohnen(...kampfLohn(solo.liga, e, 0)));
+    if (texte.length) { bel.hidden = false; bel.textContent = texte.join(' · '); }
     zeige('ergebnis');
+  }
+  // Ausdauer-Serie beenden: Lohn gutschreiben und Rekord merken
+  function ausdauerEnde(sr, zumMenue, nurTexte) {
+    if (sr.fertig) { if (!nurTexte) zumMenue ? startZeigen() : ausdauerZeigen(); return []; }
+    sr.fertig = true;
+    const texte = [];
+    if (sr.n > (aufstieg.rekorde.ausdauer || 0)) { aufstieg.rekorde.ausdauer = sr.n; if (sr.n) texte.push('Neuer Rekord!'); }
+    texte.push(...belohnen(sr.lohn[0] + 10, sr.lohn[1]));
+    if (nurTexte) return texte;
+    ausdauerMeldung = `Serie beendet: ${sr.n} besiegt. ${texte.join(' · ')}`;
+    if (zumMenue) startZeigen(); else ausdauerZeigen();
+    return texte;
   }
 
   /* ---------- Hintergrund-Kampf im Menü ---------- */
@@ -262,7 +488,7 @@
     const wa = RF.gegnerWerte(a, 'silber'), wb = RF.gegnerWerte(b, 'silber');
     wa.hp = wb.hp = 2000;
     demo = new RF.Kampf({ boxer:[wa, wb], runden:1, dauer:900, startwert:1 + Math.floor(Math.random() * 1e9), intro:0 });
-    B3[0].aussehenSetzen(aussehenAus(profil)); B3[1].aussehenSetzen(gegner(b).aussehen);
+    B3[0].aussehenSetzen(eigenesAussehen()); B3[1].aussehenSetzen(gegner(b).aussehen);
     B3[0].ichSicht(false); B3[1].ichSicht(false); durchsicht = [false, false];
   }
 
@@ -571,6 +797,11 @@
   function name(i) { return anzeige.namen[i] || ''; }
   function ereignis(e) {
     const ich = anzeige.ecke, solo_ = modus === 'solo', echt = modus !== 'menue';
+    if (solo_ && solo && solo.drill) {
+      drillEreignis(e);
+      if (e.typ === 'ende') { Ton.gong(3); meldung('Zeit!', `${solo.drill.punkte} Punkte`, 2600); return; }
+      if (e.typ === 'treffer' && e.wer === 0 && solo.art === 'pratzen') { B3[0].handschuhWelt(e.seite === 'L' ? 0 : 1, tmpV); Arena.treffer(tmpV, 0.5, '#ffe08a'); Ton.schlag(0.5, e.kopf); return; }
+    }
     switch (e.typ) {
       case 'treffer': {
         const ziel = 1 - e.wer, hand = e.seite === 'L' ? 0 : 1;
@@ -626,6 +857,8 @@
       case 'finte': if (echt && e.wer !== ich) klein('Finte!', 700); break;
       case 'wechsel': if (echt && e.wer !== ich) klein('Handwechsel!', 700); break;
       case 'wut': if (echt) meldung(`${name(e.wer)} wird wütend!`, 'Deckung hoch!', 1400); break;
+      case 'vulkan': if (echt) { meldung('Vulkan-Serie!', 'Ducken – zur Seite – ducken', 1300); Ton.aufschrei(0.6); } break;
+      case 'zweiteLuft': if (echt) { meldung(`${name(e.wer)}: zweite Luft!`, 'Jetzt wird er schneller', 1600); Arena.jubel(1.4); } break;
       case 'platt': if (echt && e.wer === ich) klein('Keine Puste – kurz nicht schlagen', 1000); break;
       case 'keinStern': if (echt && e.wer === ich) klein('Noch kein Stern – erst kontern!', 1000); break;
       case 'gebrochen': if (echt) klein(e.wer === ich ? 'Deckung gebrochen!' : `${name(e.wer)}: Deckung gebrochen!`, 1000); break;
@@ -743,6 +976,7 @@
         for (const e of solo.kampf.ereignisse.splice(0)) ereignis(e);
       }
       anzeigeAusKampf(solo.kampf);
+      drillSchritt();
       if (solo.kampf.phase === 'ende' && !solo.endeBei) solo.endeBei = jetzt + 3000;
       if (solo.endeBei && jetzt > solo.endeBei && !solo.gezeigt) { solo.gezeigt = true; soloErgebnis(); }
     } else if (modus === 'online' && netz.kampf) {
@@ -777,7 +1011,7 @@
 
   // Debug und Tests: ringfieber.sim(sek) rechnet den Solo-Kampf weiter
   window.ringfieber = {
-    get solo() { return solo; }, get netz() { return netz; }, anzeige, B3, profil, karriere,
+    get solo() { return solo; }, get netz() { return netz; }, anzeige, B3, profil, karriere, aufstieg,
     sim(sek) { if (!solo) return; for (let i = 0; i < sek * RF.TAKT; i++) { solo.kampf.schritt(); for (const e of solo.kampf.ereignisse.splice(0)) ereignis(e); } },
     starten:soloStarten
   };
