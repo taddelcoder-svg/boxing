@@ -148,8 +148,59 @@ test('Netz-Zustand lässt sich zurückübersetzen', () => {
 });
 
 test('Jeder Computer-Gegner beendet seine Kämpfe in jeder Liga', () => {
-  for (const g of RF.GEGNER) for (const liga of Object.keys(RF.LIGEN)) {
+  for (const liga of Object.keys(RF.LIGEN)) for (const g of RF.ligaGegner(liga)) {
     const k = kampfRechnen(g.id, liga, spielerBot({ startwert:g.id.length }), 5);
     assert.equal(k.phase, 'ende', `${g.id} ${liga}`);
   }
+});
+
+test('Weltmeister-Liga: neun Gegner, der letzte ist der Weltmeister', () => {
+  assert.equal(RF.ligaGegner('welt').length, 9);
+  assert.equal(RF.ligaGegner('gold').length, 8);
+  assert.equal(RF.ligaGegner('welt')[8].id, 'vulkan');
+  assert.ok(RF.gegnerWerte('vulkan', 'welt').hp > RF.gegnerWerte('leo', 'welt').hp);
+  assert.ok(!RF.GEGNER.some(g => g.champion), 'der Weltmeister taucht nicht in den anderen Ligen auf');
+});
+
+test('Weltmeister: Vulkan-Serie und zweite Luft', () => {
+  const gw = RF.gegnerWerte('vulkan', 'welt');
+  gw.ki.vulkan = 1;
+  const k = new RF.Kampf({ intro:0, boxer:[{ unverwundbar:true }, gw], startwert:3 });
+  const arten = [];
+  for (let i = 0; i < RF.s(6); i++) { k.schritt(); for (const e of k.ereignisse.splice(0)) if (e.typ === 'ausholen' && e.wer === 1) arten.push(e.art); }
+  assert.deepEqual(arten.slice(0, 3), ['haken', 'aufwaerts', 'haken']);
+  const k2 = new RF.Kampf({ intro:0, boxer:[{}, RF.gegnerWerte('vulkan', 'welt')], startwert:5 });
+  k2.schritt();
+  const tempo = k2.b[1].ki.tempo;
+  k2.b[1].hp = Math.round(k2.b[1].hpMax * 0.4);
+  laufen(k2, 3);
+  assert.equal(ereignis(k2, 'zweiteLuft').length, 1);
+  assert.ok(k2.b[1].ki.tempo < tempo, 'danach schneller');
+  laufen(k2, 60);
+  assert.equal(ereignis(k2, 'zweiteLuft').length, 1, 'nur einmal');
+});
+
+test('Aufstieg: Stufen, Werte und Ausrüstung', () => {
+  assert.equal(RF.stufeAus(0), 1);
+  assert.equal(RF.stufeAus(RF.epFuer(2)), 2);
+  assert.equal(RF.stufeAus(RF.epFuer(2) - 1), 1);
+  assert.equal(RF.stufeAus(1e9), RF.STUFE_MAX);
+  // so viele Trainingspunkte wie Werte-Stufen
+  assert.equal(RF.STUFE_MAX - 1, Object.values(RF.WERTE).reduce((a, w) => a + w.max, 0));
+  assert.deepEqual(RF.spielerWerte(), { hp:100, schadenFaktor:1, pusteFaktor:1 });
+  const w = RF.spielerWerte({ kraft:2, ausdauer:5, kondition:1 }, ['handschuhe1', 'handschuhe2', 'schutz1']);
+  assert.equal(w.hp, Math.round(100 * 1.2 * 1.08));
+  assert.ok(Math.abs(w.schadenFaktor - 1.06 * 1.10) < 1e-9, 'nur die besten Handschuhe zählen');
+  assert.ok(Math.abs(w.pusteFaktor - 0.96) < 1e-9);
+  assert.equal(RF.spielerWerte({ kraft:99 }).schadenFaktor, 1.15, 'Werte sind gedeckelt');
+});
+
+test('Spielerwerte wirken: Schaden, Puste und Startleben', () => {
+  const k = kampf({ boxer:[{ schadenFaktor:1.5, pusteFaktor:0.5, hp:120, hpStart:70 }, {}] });
+  assert.equal(k.b[0].hp, 70); assert.equal(k.b[0].hpMax, 120);
+  k.befehl(0, { a:'schlag', art:'gerade', seite:'R' });
+  laufen(k, 30);
+  assert.equal(k.b[1].hp, 100 - 9);
+  assert.equal(Math.round(k.b[0].puste * 10) / 10 < 100, true);
+  assert.ok(100 - k.b[0].puste < RF.ANGRIFFE.gerade.puste, 'halbe Puste-Kosten');
 });

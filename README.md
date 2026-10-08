@@ -5,9 +5,16 @@ Eigene Figuren und eigener Name (Vorbild ist das Spielgefühl von Punch-Out, ohn
 
 ## Modi
 
-- **Karriere:** drei Ligen (Bronze, Silber, Gold) mit je acht Gegnern, einer nach dem anderen. Ligasiege schalten Farben frei.
-- **Schnellkampf:** jeder Gegner in jeder Liga, drei Runden.
-- **Training:** man kann nicht verlieren; bei jedem Ausholen des Gegners steht da, was hilft. Mit Zeitlupe.
+- **Karriere:** vier Ligen (Bronze, Silber, Gold, Weltmeister) mit je acht Gegnern, einer nach dem anderen. In der
+  Weltmeister-Liga folgt als neunter der **Titelkampf** gegen Viktor „Vulkan“ Varga (Vulkan-Serie: Haken, Aufwärtshaken,
+  Haken; unter halber Kraft einmal „zweite Luft“). Ligasiege schalten Farben frei, der Titel den Weltmeister-Gürtel.
+- **Schnellkampf:** jeder Gegner in jeder Liga, drei Runden (der Weltmeister erst nach dem Titel).
+- **Ausdauer:** Gegner um Gegner, je eine Runde, die Lebenskraft nimmt man mit (+20 % nach jedem Sieg); Bronze → Weltmeister.
+- **Trainingslager:** Muster-Training (man kann nicht verlieren, bei jedem Ausholen steht da, was hilft, mit Zeitlupe),
+  **Pratzen** (30 s den gerufenen Schlag treffen) und **Ausweich-Drill** (30 s ausweichen gegen Dauerfeuer).
+- **Aufstieg & Ausrüstung:** Kämpfe gegen den Computer bringen Erfahrung und Münzen. Jede Stufe (bis 16) gibt einen
+  Trainingspunkt für Kraft, Ausdauer oder Kondition; Münzen kaufen Handschuhe, Schuhe und Mundschutz. Gilt **nur gegen
+  den Computer** – online und in der Olympiade boxen alle gleich stark. Gespeichert in localStorage (`rf-aufstieg`).
 - **Online:** Duell (1 gegen 1, mit Revanche) oder **K.-o.-Turnier** für 2–16 Leute per Raumcode bzw. Einladungslink.
   Alle Kämpfe einer Runde laufen gleichzeitig, wer frei hat oder raus ist, schaut zu; Freilose, Kampf um Platz 3.
 - **Olympiade:** Disziplin der Swimming-Lions-Olympiade (Ticket-Link `?olymp=…`). Die ganze Gruppe landet in einem
@@ -51,7 +58,7 @@ npm start
 Dann http://localhost:10800 (Startbefehl „ringfieber“ in `.claude/launch.json`). Ohne `ZUGANG_PASSWORT` ist es lokal offen.
 
 Tests: `npm test` (Regeln und Turnier-Server), Balance-Übersicht der Computer-Gegner: `npm run balance`.
-Debug im Browser: `ringfieber.starten('karriere', 'leo', 'gold')`, `ringfieber.sim(sekunden)`, `ringfieber.solo.kampf`.
+Debug im Browser: `ringfieber.starten('karriere', 'vulkan', 'welt')`, `ringfieber.starten('pratzen')`, `ringfieber.aufstieg`, `ringfieber.sim(sekunden)`, `ringfieber.solo.kampf`.
 
 ## Render
 

@@ -11,6 +11,10 @@ Olympia als **K.-o.-Turnier gegeneinander**.
 Kampfansicht in der Ich-Sicht (Kamera im eigenen Kopf, eigene Handschuhe unten), weil der eigene Boxer von hinten
 den Gegner verdeckt hat.
 
+**Weltmeister-Update (2026-10-08):** vierte Liga (Weltmeister) mit Titelkampf gegen Viktor „Vulkan“ Varga,
+Aufstieg (Stufen, Trainingspunkte, Münzen, Ausrüstung – nur gegen den Computer), Trainingslager (Pratzen,
+Ausweich-Drill) und Ausdauer-Modus. Online und Olympiade bleiben unverändert: alle Boxer gleich stark.
+
 ---
 
 ## 1. Kernidee in einem Satz

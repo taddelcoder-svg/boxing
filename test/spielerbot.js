@@ -49,8 +49,10 @@ function spielerBot({ reaktion = 0.3, genau = 0.7, angriffe = 0.9, startwert = 7
 }
 
 // Einen ganzen Kampf rechnen: Spieler-Bot (Ecke 0) gegen Computer-Gegner (Ecke 1)
+// opt.spieler: Werte des Spielers (z. B. aus RF.spielerWerte)
 function kampfRechnen(gegner, liga, bot, startwert, opt = {}) {
-  const k = new RF.Kampf({ boxer:[{}, RF.gegnerWerte(gegner, liga)], startwert, ...opt });
+  const { spieler, ...rest } = opt;
+  const k = new RF.Kampf({ boxer:[spieler || {}, RF.gegnerWerte(gegner, liga)], startwert, ...rest });
   let n = 0;
   while (k.phase !== 'ende' && n < RF.s(60 * 12)) {
     for (const b of bot(k.b[0], k.b[1], k.tick, k.phase)) k.befehl(0, b);

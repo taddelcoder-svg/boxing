@@ -150,6 +150,25 @@
   .fehlerzeile { color:#ff8a8a; min-height:1.4em; margin-top:8px; }
   .boxerlayout { display:grid; grid-template-columns:minmax(0, 560px); gap:16px; }
 
+  /* Aufstieg */
+  .leise { color:var(--leise); }
+  .aufstieglayout { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; align-items:start; }
+  .muenzen { color:var(--gold); font-weight:800; font-size:1.2rem; }
+  .epbalken { height:14px; border-radius:7px; background:rgba(0,0,0,.5); border:1px solid var(--linie); overflow:hidden; margin-top:10px; }
+  .epbalken i { display:block; height:100%; background:linear-gradient(90deg, #3ccf6a, #ffd23f); transform-origin:left; }
+  .werte, .laden { display:grid; gap:10px; }
+  .wert, .ware { display:grid; grid-template-columns:1fr auto; gap:4px 12px; align-items:center; background:var(--tafel-hell); border:1px solid var(--linie); border-radius:12px; padding:10px 12px; }
+  .wert b, .ware b { font-size:1.15rem; }
+  .wert small, .ware small { color:var(--leise); grid-column:1; }
+  .wert .knopf, .ware .knopf { grid-row:1 / span 2; grid-column:2; }
+  .pips { letter-spacing:.15em; color:var(--gold); }
+  .ware.hat { border-color:rgba(60,207,106,.6); }
+  #drillZiel { position:absolute; left:50%; bottom:30%; transform:translateX(-50%); background:rgba(0,0,0,.75); border:3px solid var(--gold); border-radius:14px; padding:8px 20px; text-align:center; font-weight:800; white-space:nowrap; }
+  #drillZiel b { display:block; font-size:clamp(1.6rem, 6vw, 2.8rem); color:var(--gold); text-transform:uppercase; line-height:1.05; }
+  #drillZiel small { font-size:clamp(.95rem, 2.8vw, 1.2rem); color:#e6e8ee; }
+  #drillZiel .fort { height:6px; border-radius:3px; background:rgba(255,255,255,.15); margin-top:6px; overflow:hidden; }
+  #drillZiel .fort i { display:block; height:100%; background:var(--gold); transform-origin:left; }
+
   /* Lobby & Turnierbaum */
   .raumcode { font-size:clamp(2.6rem, 10vw, 4rem); font-weight:800; letter-spacing:.18em; color:var(--gold); line-height:1; }
   .leute { list-style:none; margin:12px 0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px; }
@@ -265,7 +284,9 @@
       <button class="knopf haupt" data-gehe="karriere">Karriere <small id="karriereStand">Bronze 0/8</small></button>
       <button class="knopf" data-gehe="online">Online-Duell &amp; Turnier <small>mit Code</small></button>
       <button class="knopf" data-gehe="schnell">Schnellkampf <small>gegen den Computer</small></button>
-      <button class="knopf" data-gehe="training">Training <small>ohne Risiko, mit Tipps</small></button>
+      <button class="knopf" data-gehe="ausdauer">Ausdauer <small id="ausdauerStand">Gegner um Gegner</small></button>
+      <button class="knopf" data-gehe="lager">Trainingslager <small>Muster, Pratzen, Ausweichen</small></button>
+      <button class="knopf" data-gehe="aufstieg">Aufstieg &amp; Ausrüstung <small id="aufstiegStand">Stufe 1</small></button>
       <button class="knopf" data-gehe="boxer">Mein Boxer</button>
       <button class="knopf" data-gehe="hilfe">Steuerung &amp; Regeln</button>
     </div>
@@ -283,7 +304,7 @@
   <div class="innen">
     <button class="knopf klein zurueck" data-gehe="start">← Zurück</button>
     <h2>Karriere</h2>
-    <p>Acht Gegner pro Liga, einer nach dem anderen. Wer alle besiegt, steigt auf – und schaltet neue Farben frei.</p>
+    <p>Acht Gegner pro Liga, einer nach dem anderen. Wer alle besiegt, steigt auf – und schaltet neue Farben frei. Nach Gold wartet die Weltmeister-Liga mit dem Titelkampf gegen den Weltmeister.</p>
     <div class="reiter" id="ligaReiter"></div>
     <div class="gegnerliste" id="karriereListe"></div>
     <div class="tipp" id="karriereTipp" hidden></div>
@@ -315,8 +336,58 @@
       <div><h3>Figur</h3><div class="presets" id="presetListe"></div></div>
       <div><h3>Hose</h3><div class="farben" id="hoseListe"></div></div>
       <div><h3>Handschuhe</h3><div class="farben" id="handschuhListe"></div></div>
+      <label class="zeile" id="guertelWahl" hidden><input type="checkbox" id="guertel"> Weltmeister-Gürtel tragen</label>
       <p>Alle Figuren boxen gleich stark – es geht nur ums Aussehen. Weitere Farben gibt es für Ligasiege in der Karriere.</p>
     </div>
+  </div>
+</section>
+
+<!-- Aufstieg & Ausrüstung -->
+<section id="sAufstieg" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" data-gehe="start">← Zurück</button>
+    <h2>Aufstieg &amp; Ausrüstung</h2>
+    <p>Kämpfe gegen den Computer bringen Erfahrung und Münzen. Jede neue Stufe gibt einen Trainingspunkt. Das alles zählt nur gegen den Computer – online boxen alle gleich stark.</p>
+    <div class="aufstieglayout">
+      <div class="karte">
+        <div class="zeile" style="justify-content:space-between"><h3 style="margin:0" id="stufeText">Stufe 1</h3><span class="muenzen" id="muenzenText">0 Münzen</span></div>
+        <div class="epbalken"><i id="epBalken"></i></div>
+        <p class="leise" id="epText"></p>
+        <h3>Training <small class="leise" id="punkteText"></small></h3>
+        <div id="werteListe" class="werte"></div>
+      </div>
+      <div class="karte">
+        <h3 style="margin-top:0">Ausrüstung</h3>
+        <p class="leise">Je Platz zählt das beste Stück, das du besitzt.</p>
+        <div id="ladenListe" class="laden"></div>
+        <table class="tabelle" id="kampfwerte" style="margin-top:14px"></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trainingslager -->
+<section id="sLager" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" data-gehe="start">← Zurück</button>
+    <h2>Trainingslager</h2>
+    <p>Hier lernst du die Gegner kennen und schleifst an deiner Technik. Pratzen und Ausweich-Drill bringen Erfahrung.</p>
+    <div class="gegnerliste">
+      <button class="wahl" type="button" data-lager="muster"><span class="nr">Ohne Risiko</span><span class="name">Muster-Training</span><span class="typ">Wähle einen Gegner. Du kannst nicht verlieren, unten steht, was hilft. Mit Zeitlupe.</span></button>
+      <button class="wahl" type="button" data-lager="pratzen"><span class="nr">30 Sekunden</span><span class="name">Pratzen</span><span class="typ">Der Coach ruft einen Schlag – triff genau den, so schnell du kannst.</span><span class="marke" id="rekordPratzen"></span></button>
+      <button class="wahl" type="button" data-lager="drill"><span class="nr">30 Sekunden</span><span class="name">Ausweich-Drill</span><span class="typ">Ein Sparringspartner schlägt ohne Pause. Weich so oft wie möglich richtig aus.</span><span class="marke" id="rekordDrill"></span></button>
+    </div>
+  </div>
+</section>
+
+<!-- Ausdauer -->
+<section id="sAusdauer" class="schirm" hidden>
+  <div class="innen">
+    <button class="knopf klein zurueck" data-gehe="start">← Zurück</button>
+    <h2>Ausdauer</h2>
+    <p>Gegner um Gegner, je eine Runde. Deine Lebenskraft nimmst du mit, nach jedem Sieg kommt nur ein Fünftel zurück. Erst Bronze, dann Silber, Gold und am Ende die Weltmeister-Liga. Wie weit kommst du?</p>
+    <div class="tipp" id="ausdauerRekord"></div>
+    <div class="startleiste"><button class="knopf haupt" id="ausdauerStart">Los geht's!</button></div>
   </div>
 </section>
 
@@ -410,6 +481,7 @@
   <div id="meldung"></div>
   <div id="klein"></div>
   <div id="tippHinweis" hidden></div>
+  <div id="drillZiel" hidden></div>
   <div id="aufstehen" hidden><b>Tippen! Tippen! Tippen!</b><div class="fort"><i></i></div></div>
   <div id="hudKnoepfe"><button class="knopf" id="hudBaum" hidden>Turnierbaum</button><button class="knopf" id="hudZeitlupe" hidden>Zeitlupe</button></div>
   <div id="tastenHilfe"><span><kbd>A</kbd><kbd>D</kbd>ausweichen</span><span><kbd>S</kbd>ducken</span><span><kbd>W</kbd>Deckung</span><span><kbd>J</kbd><kbd>K</kbd>Gerade</span><span><kbd>U</kbd><kbd>I</kbd>Haken</span><span><kbd>N</kbd><kbd>M</kbd>Körper</span><span><kbd>Leertaste</kbd>Volltreffer</span><span><kbd>Esc</kbd>Pause</span></div>

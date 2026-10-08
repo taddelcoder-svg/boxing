@@ -54,7 +54,8 @@
   const LIGEN = {
     bronze: { name:'Bronze', tempo:1.18, pause:1.25, deckung:0.75, abwehr:0.55, schaden:0.85, reaktion:1.35, liegen:0.40, hp:0.9 },
     silber: { name:'Silber', tempo:0.95, pause:0.95, deckung:1.0, abwehr:1.15, schaden:1.15, reaktion:0.92, liegen:0.25, hp:1.05 },
-    gold:   { name:'Gold',   tempo:0.8,  pause:0.75, deckung:1.1, abwehr:1.6,  schaden:1.4,  reaktion:0.72, liegen:0.12, hp:1.2 }
+    gold:   { name:'Gold',   tempo:0.8,  pause:0.75, deckung:1.1, abwehr:1.6,  schaden:1.4,  reaktion:0.72, liegen:0.12, hp:1.2 },
+    welt:   { name:'Weltmeister', tempo:0.76, pause:0.68, deckung:1.12, abwehr:1.75, schaden:1.55, reaktion:0.66, liegen:0.08, hp:1.35 }
   };
 
   // ki: tempo = Faktor fürs Ausholen (größer = deutlichere Vorzeichen), pause = Sekunden zwischen Angriffen,
@@ -103,6 +104,54 @@
       aussehen:{ haut:'#5c3a24', haare:'kurz', haarfarbe:'#0d0d0d', breite:1.08, groesse:1.06, hose:'#d4af37', handschuhe:'#d4af37', guertel:true } }
   ];
 
+  // Der Weltmeister: nur in der Weltmeister-Liga, als neunter und letzter Gegner.
+  // vulkan = Chance, statt eines Angriffs die Vulkan-Serie (Haken, Aufwärtshaken, Haken) zu starten,
+  // zweiteLuft = fällt er unter die Hälfte, wird er einmal schneller und erholt sich ein wenig.
+  const CHAMPION = { id:'vulkan', name:'Viktor „Vulkan“ Varga', kurz:'Viktor', typ:'Weltmeister, seit Jahren unbesiegt', champion:true,
+    tipp:'Glüht er auf, kommt die Vulkan-Serie: Haken, Aufwärtshaken, Haken. Ducken, zur Seite, ducken – dann ist er weit offen. Unter halber Kraft wird er schneller.',
+    hp:130, schaden:1.15,
+    ki:{ deckung:0.9, tempo:1.06, pause:[0.65, 1.25], abwehr:0.55, reaktion:.18, serie:0.25, konter:0.6, finte:0.15, wechsel:0.15, stern:0.5, vulkan:0.22, zweiteLuft:true, gewichte:{ haken:3, gerade:2, koerper:2, aufwaerts:2 } },
+    aussehen:{ haut:'#a86f4c', haare:'kurz', haarfarbe:'#1c1008', breite:1.16, groesse:1.08, hose:'#7a0d0d', handschuhe:'#ff6d00', bart:'stoppeln', guertel:true, nacken:true } };
+  const ALLE_GEGNER = GEGNER.concat([CHAMPION]);
+  // Gegner einer Liga in Karriere-Reihenfolge
+  const ligaGegner = liga => liga === 'welt' ? ALLE_GEGNER : GEGNER;
+
+  /* ---------- Aufstieg (nur gegen den Computer; online boxen alle gleich stark) ----------
+     Erfahrung bringt Stufen, jede Stufe einen Trainingspunkt für einen der drei Werte.
+     Münzen kaufen Ausrüstung; je Platz zählt das beste gekaufte Stück. */
+  const WERTE = {
+    kraft:     { name:'Kraft',     text:'+3 % Schaden je Stufe', max:5 },
+    ausdauer:  { name:'Ausdauer',  text:'+4 % Lebenskraft je Stufe', max:5 },
+    kondition: { name:'Kondition', text:'−4 % Puste pro Schlag je Stufe', max:5 }
+  };
+  const AUSRUESTUNG = [
+    { id:'handschuhe1', platz:'handschuhe', name:'Profi-Handschuhe',   text:'+5 % Schaden',   preis:120, schaden:0.05 },
+    { id:'handschuhe2', platz:'handschuhe', name:'Meister-Handschuhe', text:'+10 % Schaden',  preis:380, schaden:0.10 },
+    { id:'schuhe1',     platz:'schuhe',     name:'Leichte Ringschuhe', text:'−8 % Puste',     preis:100, puste:0.08 },
+    { id:'schuhe2',     platz:'schuhe',     name:'Ringschuhe Pro',     text:'−15 % Puste',    preis:320, puste:0.15 },
+    { id:'schutz1',     platz:'schutz',     name:'Mundschutz',         text:'+8 % Lebenskraft',  preis:110, hp:0.08 },
+    { id:'schutz2',     platz:'schutz',     name:'Profi-Mundschutz',   text:'+15 % Lebenskraft', preis:340, hp:0.15 }
+  ];
+  const STUFE_MAX = 16;   // 15 Aufstiege = 15 Trainingspunkte = alle Werte voll
+  // Erfahrung, die man insgesamt für eine Stufe braucht (Stufe 1 = Start)
+  const epFuer = stufe => 25 * (stufe - 1) * stufe;
+  function stufeAus(ep) {
+    let st = 1;
+    while (st < STUFE_MAX && ep >= epFuer(st + 1)) st++;
+    return st;
+  }
+  // Kampfwerte des Spielers aus Trainingswerten { kraft, ausdauer, kondition } und gekauften Stücken (ids)
+  function spielerWerte(werte, besitz) {
+    werte = werte || {}; besitz = besitz || [];
+    const st = k => klemm(Math.floor(werte[k] || 0), 0, WERTE[k].max);
+    const bestes = (platz, feld) => Math.max(0, ...AUSRUESTUNG.filter(a => a.platz === platz && besitz.includes(a.id)).map(a => a[feld] || 0));
+    return {
+      hp:Math.round(100 * (1 + 0.04 * st('ausdauer')) * (1 + bestes('schutz', 'hp'))),
+      schadenFaktor:(1 + 0.03 * st('kraft')) * (1 + bestes('handschuhe', 'schaden')),
+      pusteFaktor:(1 - 0.04 * st('kondition')) * (1 - bestes('schuhe', 'puste'))
+    };
+  }
+
   // Spielerfiguren zur Auswahl (nur Aussehen, alle gleich stark)
   const PRESETS = [
     { id:'mia',   name:'Mia',   frau:true,  haut:'#f1c9a5', haare:'zopf',     haarfarbe:'#5a3825', breite:0.9,  groesse:0.97 },
@@ -121,12 +170,13 @@
     { id:'gruen', name:'Grün', wert:'#2e7d32' }, { id:'lila', name:'Lila', wert:'#6a3fb5' },
     { id:'orange', name:'Orange', wert:'#f57c00', frei:'bronze' }, { id:'pink', name:'Pink', wert:'#e91e8c', frei:'bronze' },
     { id:'silber', name:'Silber', wert:'#b9c2cc', frei:'silber' }, { id:'tuerkis', name:'Türkis', wert:'#00acc1', frei:'silber' },
-    { id:'gold', name:'Gold', wert:'#d4af37', frei:'gold' }, { id:'flamme', name:'Flammenrot', wert:'#ff3d00', frei:'gold' }
+    { id:'gold', name:'Gold', wert:'#d4af37', frei:'gold' }, { id:'flamme', name:'Flammenrot', wert:'#ff3d00', frei:'gold' },
+    { id:'lava', name:'Lava', wert:'#ff6d00', frei:'welt' }, { id:'mitternacht', name:'Mitternacht', wert:'#1a237e', frei:'welt' }
   ];
 
   // Ki-Werte eines Gegners in einer Liga
   function gegnerWerte(id, liga) {
-    const g = GEGNER.find(x => x.id === id) || GEGNER[0];
+    const g = ALLE_GEGNER.find(x => x.id === id) || GEGNER[0];
     const L = LIGEN[liga] || LIGEN.silber;
     const k = g.ki;
     return {
@@ -134,7 +184,8 @@
       ki:{
         tempo:k.tempo * L.tempo, pause:[k.pause[0] * L.pause, k.pause[1] * L.pause], abwehr:Math.min(0.92, k.abwehr * L.abwehr), deckung:Math.min(0.95, k.deckung * L.deckung),
         reaktion:s(k.reaktion * L.reaktion), serie:k.serie, konter:Math.min(0.95, k.konter * (L.abwehr > 1 ? 1.2 : L.abwehr < 1 ? 0.7 : 1)),
-        finte:k.finte || 0, ramm:k.ramm || 0, wut:!!k.wut, wechsel:k.wechsel || 0, stern:k.stern || 0, gewichte:k.gewichte, liegen:L.liegen
+        finte:k.finte || 0, ramm:k.ramm || 0, wut:!!k.wut, wechsel:k.wechsel || 0, stern:k.stern || 0, gewichte:k.gewichte, liegen:L.liegen,
+        vulkan:k.vulkan || 0, zweiteLuft:!!k.zweiteLuft
       }
     };
   }
@@ -154,11 +205,11 @@
   function boxerNeu(w) {
     w = w || {};
     return {
-      hpMax:w.hp || 100, hp:w.hp || 100, puste:PUSTE_MAX, sterne:0, nd:0, ndRunde:0,
+      hpMax:w.hp || 100, hp:Math.min(w.hp || 100, w.hpStart || w.hp || 100), puste:PUSTE_MAX, sterne:0, nd:0, ndRunde:0,
       aktion:'bereit', t:0, dauer:0, a:null, seite:'R', block:false, puffer:null, platt:0,
       aufgeloest:true, abwehr:0, angriffNr:0, offenGezaehlt:false, trefferArt:null, trefferSeite:'R',
       tippen:0, tippenNoetig:0, aufstehenBei:0, schadenAus:0, treffer:0, volltreffer:0, konter:0, ausgewichen:0, geblockt:0,
-      schadenFaktor:w.schadenFaktor || 1, unverwundbar:!!w.unverwundbar,
+      schadenFaktor:w.schadenFaktor || 1, pusteFaktor:w.pusteFaktor || 1, unverwundbar:!!w.unverwundbar,
       ki:w.ki || null, kiTimer:s(1.2), kiGesehen:-1, kiBlockBis:0, kiSerie:0, wut:0, wutTreffer:[]
     };
   }
@@ -287,7 +338,7 @@
       if (c.tempo) a.aus = Math.max(6, Math.round(a.aus * c.tempo));
       if (c.finte) a.finteBei = Math.max(4, Math.round(a.aus * 0.55));
       if (c.wechsel) a.wechselBei = Math.max(4, Math.round(a.aus * 0.5));
-      b.puste -= basis.puste;
+      b.puste -= basis.puste * b.pusteFaktor;
       if (b.puste <= 0) { b.puste = 0; b.platt = PLATT; this.ev({ typ:'platt', wer:i }); }
       b.a = a; b.seite = c.seite; b.aktion = 'schlag'; b.t = 0; b.aufgeloest = true; b.angriffNr++;
       this.ev({ typ:'ausholen', wer:i, art, seite:c.seite });
@@ -482,6 +533,13 @@
     /* ---------- Computer-Gegner ---------- */
     kiSchritt(i) {
       const b = this.b[i], g = this.b[1 - i], k = b.ki, r = this.rng;
+      // Zweite Luft (Weltmeister): unter halber Kraft einmal schneller und etwas erholt
+      if (k.zweiteLuft && !b.zweiteLuft && b.hp > 0 && b.hp < b.hpMax * 0.45 && b.aktion !== 'boden') {
+        b.zweiteLuft = true;
+        k.tempo *= 0.88; k.pause = [k.pause[0] * 0.8, k.pause[1] * 0.8]; k.serie = Math.min(0.5, k.serie + 0.1);
+        b.hp = Math.min(b.hpMax, b.hp + Math.round(b.hpMax * 0.1)); b.puste = PUSTE_MAX;
+        this.ev({ typ:'zweiteLuft', wer:i });
+      }
       const frei = b.aktion === 'bereit' || b.aktion === 'block';
       // Auf einen Schlag reagieren (einmal pro Schlag, nach der Reaktionszeit)
       if (g.aktion === 'schlag' && g.t < g.a.aus && g.angriffNr !== b.kiGesehen && g.t >= k.reaktion) {
@@ -529,6 +587,14 @@
         b.kiTimer = b.wut > 0 ? s(0.18) : s(1.2);
         return;
       }
+      // Vulkan-Serie (Weltmeister): Haken, Aufwärtshaken, Haken mit deutlichem Ausholen
+      if (k.vulkan && !b.vulkan && r() < k.vulkan) { b.vulkan = 3; this.ev({ typ:'vulkan', wer:i }); }
+      if (b.vulkan > 0) {
+        b.vulkan--;
+        this.kiAngriff(i, b.vulkan === 1 ? 'aufwaerts' : 'haken', 1.1, true);
+        b.kiTimer = b.vulkan > 0 ? s(0.15) : s(1.1);
+        return;
+      }
       let art;
       if (k.stern && b.sterne >= 1 && r() < k.stern) art = 'volltreffer';
       else if (k.ramm && r() < k.ramm * 0.5) art = 'ramm';
@@ -550,10 +616,11 @@
       return liste[0][0];
     }
 
-    kiAngriff(i, art, tempoFaktor) {
+    kiAngriff(i, art, tempoFaktor, ehrlich) {
       const b = this.b[i], k = b.ki, r = this.rng;
       const c = { a:art === 'volltreffer' ? 'stern' : 'schlag', art, seite:r() < 0.5 ? 'L' : 'R', bis:this.tick + PUFFER, tempo:k.tempo * tempoFaktor };
-      if (art !== 'volltreffer' && art !== 'ramm' && k.finte && r() < k.finte) c.finte = true;
+      if (ehrlich) { /* Serie: keine Finte, kein Handwechsel */ }
+      else if (art !== 'volltreffer' && art !== 'ramm' && k.finte && r() < k.finte) c.finte = true;
       else if (art === 'haken' && k.wechsel && r() < k.wechsel) c.wechsel = true;
       b.puffer = c;
     }
@@ -584,7 +651,7 @@
   }
 
   return {
-    TAKT, s, zufall, ANGRIFFE, ARTEN, MENSCH_ARTEN, AUSWEICHEN, DUCKEN, AKTIONEN, PHASEN, LIGEN, GEGNER, PRESETS, FARBEN,
-    gegnerWerte, abwehrTipp, Kampf, boxerAusZustand, PUSTE_MAX
+    TAKT, s, zufall, ANGRIFFE, ARTEN, MENSCH_ARTEN, AUSWEICHEN, DUCKEN, AKTIONEN, PHASEN, LIGEN, GEGNER, CHAMPION, ALLE_GEGNER, PRESETS, FARBEN,
+    WERTE, AUSRUESTUNG, STUFE_MAX, epFuer, stufeAus, spielerWerte, ligaGegner, gegnerWerte, abwehrTipp, Kampf, boxerAusZustand, PUSTE_MAX
   };
 });
