@@ -45,7 +45,7 @@ in einer Runde = technischer K.o.; nach Ablauf zählt der ausgeteilte Schaden (i
 - `server.js` – Auslieferung, Passwort-Tor (`zugang.js`), WebSocket `/ws`, 60-Hz-Takt.
 - `js/figuren.js` (Boxer aus Grundkörpern, Arme/Beine per IK), `js/arena.js` (Halle, Publikum, Licht, Kameras),
   `js/eingabe.js`, `js/ton.js` (alles im Browser erzeugt, abschaltbar), `js/spiel.js` (Menüs, Modi, Anzeige).
-- three.js r128 und die Schrift Barlow Semi Condensed liegen in `vendor/` (keine Verbindung zu fremden Diensten).
+- three.js r128 und die Schrift Bricolage Grotesque liegen in `vendor/` (keine Verbindung zu fremden Diensten).
 - `olymp.js` und `zugang.js` sind die Vorlagen aus `olympiade/geteilt/`; bei Änderungen dort hierher kopieren.
 
 ## Lokal

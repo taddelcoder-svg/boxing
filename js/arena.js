@@ -63,9 +63,9 @@ const Arena = (() => {
       g.beginPath(); g.arc(b / 2, h / 2, 230, 0, Math.PI * 2); g.fillStyle = 'rgba(255,255,255,.1)'; g.fill();
       g.lineWidth = 10; g.strokeStyle = 'rgba(255,255,255,.55)'; g.stroke();
       g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.font = '800 104px "Barlow Semi Condensed", Arial, sans-serif';
+      g.font = '800 104px "Bricolage Grotesque", Arial, sans-serif';
       g.fillText('RINGFIEBER', b / 2, h / 2 - 12);
-      g.font = '700 38px "Barlow Semi Condensed", Arial, sans-serif'; g.fillStyle = '#ffd23f';
+      g.font = '700 38px "Bricolage Grotesque", Arial, sans-serif'; g.fillStyle = '#ffd23f';
       g.fillText('SWIMMING LIONS', b / 2, h / 2 + 72);
       // Abnutzung
       for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.05})`; g.fillRect(Math.random() * b, Math.random() * h, 3 + Math.random() * 12, 2 + Math.random() * 8); }
@@ -79,7 +79,7 @@ const Arena = (() => {
     const schuerze = leinwand(1024, 128, (g, b, h) => {
       g.fillStyle = '#0b0d14'; g.fillRect(0, 0, b, h);
       g.fillStyle = '#d32f2f'; g.fillRect(0, 0, b, 10);
-      g.font = '800 72px "Barlow Semi Condensed", Arial, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '800 72px "Bricolage Grotesque", Arial, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText('RINGFIEBER  ★  RINGFIEBER', b / 2, h / 2 + 6);
     });
     const unten = new THREE.Mesh(new THREE.BoxGeometry(RING * 2 + 0.5, 1.0, RING * 2 + 0.5), new THREE.MeshStandardMaterial({ map:schuerze, roughness:0.8 }));
