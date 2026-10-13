@@ -39,7 +39,12 @@
   const meineWerte = () => RF.spielerWerte(aufstieg.werte, aufstieg.besitz);
   const weltmeister = () => ligaGeschafft('welt');
   // Eigenes Aussehen (mit Gürtel, wenn man Weltmeister ist und ihn tragen will)
-  const eigenesAussehen = () => Object.assign(aussehenAus(profil), aufstieg.guertel && weltmeister() ? { guertel:true } : {});
+  // Gekaufte Ausrüstung ist am Boxer zu sehen (Handschuhe, Ringschuhe, Mundschutz je Stufe 0 bis 2)
+  const ausruestungStufen = () => {
+    const stufe = platz => Math.max(0, ...RF.AUSRUESTUNG.filter(a => a.platz === platz && aufstieg.besitz.includes(a.id)).map(a => Number(a.id.slice(-1)) || 0));
+    return { handschuhe:stufe('handschuhe'), schuhe:stufe('schuhe'), schutz:stufe('schutz') };
+  };
+  const eigenesAussehen = () => Object.assign(aussehenAus(profil), { ausr:ausruestungStufen() }, aufstieg.guertel && weltmeister() ? { guertel:true } : {});
   // Belohnung gutschreiben; gibt die Texte für den Ergebnis-Bildschirm zurück
   function belohnen(ep, muenzen) {
     const vorher = stufe();
@@ -793,7 +798,7 @@
   }
 
   /* ---------- Ereignisse → Effekte, Ton, Meldungen ---------- */
-  const tmpV = new THREE.Vector3();
+  const tmpV = new THREE.Vector3(), tmpD = new THREE.Vector3();
   function name(i) { return anzeige.namen[i] || ''; }
   function ereignis(e) {
     const ich = anzeige.ecke, solo_ = modus === 'solo', echt = modus !== 'menue';
@@ -807,7 +812,9 @@
         const ziel = 1 - e.wer, hand = e.seite === 'L' ? 0 : 1;
         B3[e.wer].handschuhWelt(hand, tmpV);
         const staerke = klemm(e.schaden / 16, 0.2, 1.5);
-        Arena.treffer(tmpV, staerke, e.sterne ? '#ffd23f' : e.konter ? '#ffe08a' : e.panzer ? '#aab4c4' : '#ffffff');
+        // Treffer-Richtung vom Angreifer zum Ziel, damit Funken und Schweiß in Schlagrichtung fliegen
+        tmpD.copy(B3[ziel].wurzel.position).sub(B3[e.wer].wurzel.position); tmpD.y = 0; tmpD.normalize();
+        Arena.treffer(tmpV, staerke, e.sterne ? '#ffd23f' : e.konter ? '#ffe08a' : e.panzer ? '#aab4c4' : '#ffffff', { richtung:tmpD, kopf:!!e.kopf, koerper:!e.kopf, wort:!!e.sterne });
         if (!echt) return;
         Ton.schlag(staerke, e.kopf);
         zahl(ziel, `−${e.schaden}`, ziel === ich ? 'wehe' : e.konter || e.sterne ? 'konter' : '');
@@ -831,12 +838,17 @@
       case 'ausholen':
         if (echt && solo_ && solo.art === 'training' && e.wer !== ich) tipp(RF.abwehrTipp(e.art, e.seite));
         break;
-      case 'niederschlag':
+      case 'niederschlag': {
         Arena.jubel(1.6);
+        // Schockwelle, Staub und fliegender Mundschutz am Ort des Niederschlags
+        B3[e.wer].kopfWelt(tmpV);
+        tmpD.copy(B3[e.wer].wurzel.position).sub(B3[1 - e.wer].wurzel.position); tmpD.y = 0; tmpD.normalize();
+        Arena.ko(B3[e.wer].wurzel.position, { kopf:true, kopfPos:tmpV.clone(), richtung:tmpD.clone(), farbe:B3[e.wer].a.hose });
         if (!echt) return;
         Ton.aufschrei(1.2);
         meldung('Niederschlag!', e.wer === ich ? 'Gleich tippen, um aufzustehen!' : `${name(e.wer)} liegt am Boden`, 1500);
         break;
+      }
       case 'zaehlen': if (echt) { meldung(String(e.n), '', 800); Ton.zaehlen(e.n); } break;
       case 'aufgestanden': if (echt) { Ton.aufschrei(0.5); klein(`${name(e.wer)} steht wieder!`, 1200); } break;
       case 'gong':
@@ -848,7 +860,7 @@
       case 'verlaengerung': if (echt) { Ton.gong(1); meldung('Verlängerung!', 'Der erste saubere Treffer gewinnt', 2600); } break;
       case 'ende': {
         if (!echt) { demo = null; demoStarten(); return; }
-        Arena.jubel(2); Ton.gong(3); Ton.aufschrei(1);
+        Arena.jubel(2); Arena.konfetti(e.art === 'ko' || e.art === 'tko' ? 1 : 0.6); Arena.lichtEffekt('#ffd23f', 2.5); Ton.gong(3); Ton.aufschrei(1);
         const art = { ko:'K.o.!', tko:'T.K.o.!', punkte:'Punktsieg', verlaengerung:'Entschieden!', los:'Losentscheid', aufgabe:'Aufgabe', unentschieden:'Unentschieden' }[e.art] || 'Ende';
         const sub = e.sieger == null ? 'Kein Sieger' : e.sieger === ich ? 'Du gewinnst!' : `${name(e.sieger)} gewinnt`;
         meldung(art, sub, 3200);
@@ -993,6 +1005,11 @@
     for (let i = 0; i < 2; i++) B3[i].pose(anzeige.boxer[i], dt * (modus === 'solo' ? faktor : 1), anzeige.phase);
     // Im Boxer-Menü steht der eigene Boxer allein im Ring
     B3[1].wurzel.visible = schirm !== 'boxer';
+    // Angeschlagene Boxer: kreisende Sterne über dem Kopf
+    for (let i = 0; i < 2; i++) {
+      const ak = anzeige.boxer[i].aktion;
+      if (modus !== 'menue' && B3[i].wurzel.visible && (ak === 'boden' || ak === 'aufstehen' || ak === 'gebrochen') && !B3[i].ich) Arena.benommen(i, B3[i].kopfWelt(tmpV)); else Arena.benommen(i, null);
+    }
     kameraWaehlen();
     durchsichtSetzen();
     hudAktualisieren();
