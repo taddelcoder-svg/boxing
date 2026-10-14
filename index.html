@@ -732,5 +732,16 @@
   if (document.body) bauen(); else document.addEventListener('DOMContentLoaded', bauen);
 })();
 </script>
+
+<!-- Rangliste der Spielesammlung: meldet Spielzeit, Punkte und Progress -->
+<script>
+window.SLRangAdapter=function(){
+  var l=function(k){try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return{}}};
+  var k=l('rf-karriere'),a=l('rf-aufstieg');
+  var ligen=(k.bronze>0?1:0)+(k.silber>0?1:0)+(k.gold>0?1:0)+(k.welt>0?1:0);
+  return{punkte:(k.kaempfe||0)*100+(a.ep||0),progress:ligen/4*100}
+};
+</script>
+<script src="https://rangliste-aoee.onrender.com/melder.js" data-spiel="Ringfieber" defer></script>
 </body>
 </html>
